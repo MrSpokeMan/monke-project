@@ -75,3 +75,20 @@ Stworzenie aplikacji, która:
 - https://github.com/langchain-ai/langchain
 - https://www.langchain.com/langgraph
 - Uzupelnic
+
+# Plan Projektu
+
+## Cel projektu
+Stworzenie aplikacji, która umożliwi użytkownikom zadawanie pytań i otrzymywanie odpowiedzi na podstawie zebranych danych tekstowych, które będą się opierać na danych z bazy EUR-LEX. Dane te będą przetwarzane za pomocą modeli językowych (LLM) i przechowywane w bazie wektorowej.
+
+## Moduły projektu
+1. **Input - Web Scraper**
+   - Zbieranie danych z bazy EUR-LEX z użyciem API.
+   - Oczyszczanie i przygotowanie danych do dalszego przetwarzania.
+   - https://eur-lex.europa.eu/content/welcome/data-reuse.html
+2. **Przetwarzanie Tekstu i Generowanie Embeddingów**
+   - Wykorzystanie modeli langchain i może jakiś Deep Seak dla porównania
+3. **Baza Wektorowa**
+   - Piccone albo Milvus tutaj do poczytania i uzupełnienia wiedzy
+4. **Interfejs Użytkownika**
+   - Prosty interfejs w konsoli (CLI)
