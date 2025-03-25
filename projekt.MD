@@ -87,8 +87,8 @@ Stworzenie aplikacji, która umożliwi użytkownikom zadawanie pytań i otrzymyw
    - Oczyszczanie i przygotowanie danych do dalszego przetwarzania.
    - https://eur-lex.europa.eu/content/welcome/data-reuse.html
 2. **Przetwarzanie Tekstu i Generowanie Embeddingów**
-   - Wykorzystanie modeli langchain i może jakiś Deep Seak dla porównania
+   - Wykorzystanie modeli langchain
 3. **Baza Wektorowa**
-   - Piccone albo Milvus tutaj do poczytania i uzupełnienia wiedzy
+   - Milvus
 4. **Interfejs Użytkownika**
    - Prosty interfejs w konsoli (CLI)

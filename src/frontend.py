@@ -1,0 +1,16 @@
+import streamlit as st
+
+def set_front():
+    st.title('Ask LawBOT')
+
+    if 'messages' not in st.session_state:
+        st.session_state.messages = []
+
+    for message in st.session_state.messages:
+        st.chat_message(message['role']).markdown(message['message'])
+
+    prompt = st.chat_input("Pass your message to LawBOT")
+
+    if prompt:
+        st.chat_message('user').markdown(prompt)
+        st.session_state.messages.append({'role': 'user', 'message': prompt})
