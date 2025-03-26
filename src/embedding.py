@@ -1,26 +1,20 @@
-from openai import OpenAI
-import fitz
+from FlagEmbedding import BGEM3FlagModel
+import download as download
 import numpy as np
-import os
 
 class EmbeddingModel():
-    def __init__(self):
-        self.client = OpenAI()
+    def __init__(self, url):
+        self.down = download.EurlexDownloader(url)
+        self.ustawy = self.down()
+        self.model = BGEM3FlagModel('BAAI/bge-m3')
+        self.vector_ustaw = np.empty(len(self.ustawy), dtype=object)
         
-    def get_embedding(self, text):
-        response = self.client.embeddings.create(model="text-embedding-3-small", input=text)
-        return np.array(response.data[0].embedding)
-    
-    
-def extract_from_pdf(pdf_path):
-    doc = fitz.open(pdf_path)
-    text = "\n".join([page.get_text() for page in doc])
-    doc.close()
-    return text
+    def get_embedding(self):
+        for idx, ustawa in enumerate(self.ustawy):
+            emb = self.model.encode(ustawa)
+            self.vector_ustaw[idx] = emb['dense_vecs']
 
 if __name__ == '__main__':
-    # print(os.environ.keys())
-    # emb = EmbeddingModel()
-    text = extract_from_pdf('./data/CELEX_32024R2803_EN_TXT.pdf')
-    print(text)
-    # emb.get_embedding(text)
+    emb = EmbeddingModel("https://eur-lex.europa.eu/search.html?lang=pl&text=industry&qid=1742919459451&type=quick&DTS_SUBDOM=LEGISLATION&scope=EURLEX&FM_CODED=REG&page=1")
+    emb.get_embedding()
+    print("vector: ", emb.vector_ustaw, "rozmiar: ", emb.vector_ustaw.shape)

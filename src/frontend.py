@@ -14,3 +14,5 @@ def set_front():
     if prompt:
         st.chat_message('user').markdown(prompt)
         st.session_state.messages.append({'role': 'user', 'message': prompt})
+        
+set_front()
