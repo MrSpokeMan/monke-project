@@ -48,12 +48,11 @@ class VectorDB:
     def get_response(self, prompt):
         print("Getting response")
         emb = embedding.EmbeddingModel()
-        vector_prompt = emb.model.encode(prompt)['dense_vecs']
-        query_vector = self.client.search(collection_name=self.collection_name, data=vector_prompt, search_params={'metric_type': 'COSINE'}, output_fields=['vector'])
-        print(f"Query vector: {query_vector}")
-        return query_vector
+        vector_prompt = emb.model.encode(prompt)['dense_vecs'].tolist()
+        query_vector = self.client.search(collection_name=self.collection_name, data=[vector_prompt], search_params={'metric_type': 'COSINE'}, output_fields=['vector'])
+        return query_vector[0][0]
         
 if __name__ == '__main__':
     db = VectorDB("https://eur-lex.europa.eu/search.html?lang=pl&text=industry&qid=1742919459451&type=quick&DTS_SUBDOM=LEGISLATION&scope=EURLEX&FM_CODED=REG&page=1")
     resp = db.get_response("test")
-    print(resp)
+    print(len(resp['entity']['vector']))
