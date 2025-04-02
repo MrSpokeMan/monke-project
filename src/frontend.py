@@ -1,18 +1,28 @@
 import streamlit as st
+import vector_db
 
-def set_front():
-    st.title('Ask LawBOT')
+class LawBot:
+    def __init__(self):
+        self.db  = vector_db.VectorDB()
 
-    if 'messages' not in st.session_state:
-        st.session_state.messages = []
+    def set_front(self):
+        st.title('Ask LawBOT')
 
-    for message in st.session_state.messages:
-        st.chat_message(message['role']).markdown(message['message'])
+        if 'messages' not in st.session_state:
+            st.session_state.messages = []
 
-    prompt = st.chat_input("Pass your message to LawBOT")
+        for message in st.session_state.messages:
+            st.chat_message(message['role']).markdown(message['message'])
 
-    if prompt:
-        st.chat_message('user').markdown(prompt)
-        st.session_state.messages.append({'role': 'user', 'message': prompt})
-        
-set_front()
+        prompt = st.chat_input("Pass your message to LawBOT")
+
+        if prompt:
+            st.chat_message('user').markdown(prompt)
+            st.session_state.messages.append({'role': 'user', 'message': prompt})
+
+            resp = self.db.get_response(prompt)
+
+
+if __name__ == '__main__':
+    law_bot = LawBot()
+    law_bot.set_front()
