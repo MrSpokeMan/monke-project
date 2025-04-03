@@ -7,16 +7,13 @@ class EmbeddingModel():
         if url != "":
             self.down = download.EurlexDownloader(url)
             self.ustawy = self.down()
-        self.model = BGEM3FlagModel('BAAI/bge-m3')
+        self.model = BGEM3FlagModel('BAAI/bge-m3', return_sparse=True)
         self.vector_ustaw = []
 
     def get_embedding(self):
-        start = time.time()
         for ustawa in self.ustawy:
             emb = self.model.encode(ustawa)
             self.vector_ustaw.append(emb['dense_vecs'])
-        end = time.time()
-        print("Time taken: ", end - start)
 
 if __name__ == '__main__':
     emb = EmbeddingModel("https://eur-lex.europa.eu/search.html?lang=pl&text=industry&qid=1742919459451&type=quick&DTS_SUBDOM=LEGISLATION&scope=EURLEX&FM_CODED=REG&page=1")

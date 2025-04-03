@@ -21,6 +21,8 @@ class LawBot:
             st.session_state.messages.append({'role': 'user', 'message': prompt})
 
             resp = self.db.get_response(prompt)
+            st.chat_message('bot').markdown(str(len(resp['entity']['vector'])))
+            st.session_state.messages.append({'role': 'bot', 'message': str(len(resp['entity']['vector']))})
 
 
 if __name__ == '__main__':
