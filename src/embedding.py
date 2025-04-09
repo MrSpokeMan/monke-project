@@ -13,10 +13,13 @@ class EmbeddingModel():
 
     def get_embedding(self):
         for ustawa in self.ustawy:
+            points = []
             for point in ustawa:
                 text = point.get("text", "")
                 emb = self.model.encode(text)
-                self.vector_ustaw.append(emb['dense_vecs'])
+                point['vector'] = emb['dense_vecs']
+                points.append(point)
+            self.vector_ustaw.append(points)
 
 if __name__ == '__main__':
     emb = EmbeddingModel("https://eur-lex.europa.eu/search.html?lang=pl&text=industry&qid=1742919459451&type=quick&DTS_SUBDOM=LEGISLATION&scope=EURLEX&FM_CODED=REG")

@@ -20,10 +20,10 @@ class VectorDB:
     def _fetch_vector(self):
         print("Fetching vector")
         emb = embedding.EmbeddingModel(self.link)
-        print(emb.vector_ustaw)
         emb.get_embedding()
         self.ustawy = emb.vector_ustaw
-        self.vector_size = self.ustawy[0].shape[1]
+        self.vector_size = self.ustawy[0][0]['vector'].shape[0]
+        print("Vector size: ", self.vector_size)
         print("Vector fetched")
 
     def _create_collection(self):
@@ -34,8 +34,8 @@ class VectorDB:
                 fields=[
                     pym.FieldSchema(name='id', dtype=pym.DataType.INT64, is_primary=True, auto_id=False),
                     pym.FieldSchema(name='vector', dtype=pym.DataType.FLOAT_VECTOR, dim=self.vector_size),
-                    pym.FieldSchema(name='text', dtype=pym.DataType.STRING),
-                    pym.FieldSchema(name="name", dtype=pym.DataType.STRING)
+                    pym.FieldSchema(name='text', dtype=pym.DataType.VARCHAR, max_length=int(1e4)),
+                    pym.FieldSchema(name="name", dtype=pym.DataType.VARCHAR, max_length=int(1e3))
                 ],
                 description="ustawy"
             )
@@ -68,14 +68,15 @@ class VectorDB:
         query_vector = self.client.search(collection_name=self.collection_name,
                                           data=[vector_prompt],
                                           search_params={'metric_type': 'COSINE'},
-                                          output_fields=['vector', 'text', 'name'],
-                                          limit=1
+                                          output_fields=['text', 'name'],
+                                          limit=5
                                           )
         # TODO: Add logic to handle the response from the database connect name with text {name}-{text}
         # After return pass to model again
         return query_vector[0][0]
         
 if __name__ == '__main__':
-    db = VectorDB("https://eur-lex.europa.eu/search.html?lang=pl&text=industry&qid=1742919459451&type=quick&DTS_SUBDOM=LEGISLATION&scope=EURLEX&FM_CODED=REG")
-    resp = db.get_response("test")
-    print(len(resp['entity']['vector']))
+    db = VectorDB("https://eur-lex.europa.eu/search.html?lang=en&text=industry&qid=1742919459451&type=quick&DTS_SUBDOM=LEGISLATION&scope=EURLEX&FM_CODED=REG")
+    db()
+    # resp = db.get_response("test")
+    # print(len(resp['entity']['vector']))
