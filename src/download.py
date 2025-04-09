@@ -52,18 +52,6 @@ class EurlexDownloader:
         
         return ustawa
 
-
-    def convert_list_to_array(self) -> np.array(np.array(str)):
-        """Converts a list of lists of strings to a numpy array of strings
-
-        Returns:
-            np.array(np.array(str)): Numpy array of strings
-        """
-        ret = np.array(self.all_ustawy, dtype=object)
-        for i in range(len(ret)):
-            ret[i] = np.array(ret[i], dtype=object)
-        return ret
-
 if __name__ == "__main__":
     search_url = "https://eur-lex.europa.eu/search.html?lang=pl&text=industry&qid=1742919459451&type=quick&DTS_SUBDOM=LEGISLATION&scope=EURLEX&FM_CODED=REG&page=1"
     down = EurlexDownloader(search_url)

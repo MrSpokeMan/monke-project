@@ -3,6 +3,7 @@ import pymilvus as pym
 from streamlit import metric
 
 import embedding
+from pydantic_ai import tool
 
 class VectorDB:
     def __init__(self, link:str=""):
@@ -23,7 +24,7 @@ class VectorDB:
         print(emb.vector_ustaw)
         emb.get_embedding()
         self.ustawy = emb.vector_ustaw
-        self.vector_size = self.ustawy[0].shape[1]
+        self.vector_size = self.ustawy[0]['vector'].shape[1]
         print("Vector fetched")
 
     def _create_collection(self):
@@ -59,7 +60,8 @@ class VectorDB:
         res = self.client.insert(collection_name=self.collection_name, data=data, progress_bar=True)
         print(f"Inserted {len(data)} vectors into collection {self.collection_name}, {res}")
 
-    def get_response(self, prompt):
+    @tool
+    def get_response(self, prompt): # Also known as retrieve function
         # Getting response from the bot
         print("Getting response")
         emb = embedding.EmbeddingModel()
@@ -73,7 +75,8 @@ class VectorDB:
                                           )
         # TODO: Add logic to handle the response from the database connect name with text {name}-{text}
         # After return pass to model again
-        return query_vector[0][0]
+        hit = query_vector[0][0]
+        return f"{hit['entity']['name']}: {hit['entity']['text']}"
         
 if __name__ == '__main__':
     db = VectorDB("https://eur-lex.europa.eu/search.html?lang=pl&text=industry&qid=1742919459451&type=quick&DTS_SUBDOM=LEGISLATION&scope=EURLEX&FM_CODED=REG&page=1")
