@@ -1,9 +1,11 @@
 import streamlit as st
 import vector_db
+import law_assistant
 
 class LawBot:
     def __init__(self):
         self.db  = vector_db.VectorDB()
+        self.bot = law_assistant.LawAssistant()
 
     def set_front(self):
         st.title('Ask LawBOT')
@@ -20,9 +22,9 @@ class LawBot:
             st.chat_message('user').markdown(prompt)
             st.session_state.messages.append({'role': 'user', 'message': prompt})
 
-            resp = self.db.get_response(prompt)
-            st.chat_message('bot').markdown(str(len(resp['entity']['vector'])))
-            st.session_state.messages.append({'role': 'bot', 'message': str(len(resp['entity']['vector']))})
+            resp = self.bot.generate_response(prompt)
+            st.chat_message('bot').markdown(resp)
+            st.session_state.messages.append({'role': 'bot', 'message': resp})
 
 
 if __name__ == '__main__':

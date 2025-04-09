@@ -13,7 +13,7 @@ class VectorDB:
 
     def __call__(self):
         self._fetch_vector()
-        # self.client.drop_collection(self.collection_name) # Uncomment to drop the collection, if needed
+        self.client.drop_collection(self.collection_name) # Uncomment to drop the collection, if needed
         self._create_collection()
         self._insert_vectors()
 
@@ -42,7 +42,10 @@ class VectorDB:
                 ],
                 description="ustawy"
             )
-            self.client.create_collection(collection_name=self.collection_name, dimension=self.vector_size, schema=collection_schema)
+            index_params = self.client.prepare_index_params()
+            index_params.add_index(field_name='id', index_type='AUTOINDEX')
+            index_params.add_index(field_name='vector', index_type='AUTOINDEX', metric_type='COSINE')
+            self.client.create_collection(collection_name=self.collection_name, dimension=self.vector_size, schema=collection_schema, index_params=index_params)
             print(f"Collection {self.collection_name} created")
         else:
             print("Collection already exists")
@@ -66,18 +69,19 @@ class VectorDB:
         # Getting response from the bot
         print("Getting response")
         emb = embedding.EmbeddingModel()
-        # Looking for the vector in the database
         vector_prompt = emb.model.encode(prompt)['dense_vecs'].tolist()
+
         query_vector = self.client.search(collection_name=self.collection_name,
                                           data=[vector_prompt],
                                           search_params={'metric_type': 'COSINE'},
                                           output_fields=['text', 'name'],
-                                          limit=5
+                                          limit=1
                                           )
         return query_vector
         
 if __name__ == '__main__':
     db = VectorDB("https://eur-lex.europa.eu/search.html?lang=en&text=industry&qid=1742919459451&type=quick&DTS_SUBDOM=LEGISLATION&scope=EURLEX&FM_CODED=REG")
-    db()
-    # resp = db.get_response("test")
+    # db()
+    resp = db.get_response("test")
+    print(resp)
     # print(len(resp['entity']['vector']))
