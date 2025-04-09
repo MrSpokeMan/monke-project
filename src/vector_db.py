@@ -13,18 +13,21 @@ class VectorDB:
 
     def __call__(self):
         self._fetch_vector()
-        self.client.drop_collection(self.collection_name)
+        # self.client.drop_collection(self.collection_name) # Uncomment to drop the collection, if needed
         self._create_collection()
         self._insert_vectors()
 
     def _fetch_vector(self):
         print("Fetching vector")
-        emb = embedding.EmbeddingModel(self.link)
-        emb.get_embedding()
-        self.ustawy = emb.vector_ustaw
-        self.vector_size = self.ustawy[0][0]['vector'].shape[0]
-        print("Vector size: ", self.vector_size)
-        print("Vector fetched")
+        if self.link:
+            emb = embedding.EmbeddingModel(self.link)
+            emb.get_embedding()
+            self.ustawy = emb.vector_ustaw
+            self.vector_size = self.ustawy[0][0]['vector'].shape[0]
+            print("Vector size: ", self.vector_size)
+            print("Vector fetched")
+        else:
+            print("No link, skipping vector fetching")
 
     def _create_collection(self):
         if not self.client.has_collection(self.collection_name):
@@ -71,9 +74,7 @@ class VectorDB:
                                           output_fields=['text', 'name'],
                                           limit=5
                                           )
-        # TODO: Add logic to handle the response from the database connect name with text {name}-{text}
-        # After return pass to model again
-        return query_vector[0][0]
+        return query_vector
         
 if __name__ == '__main__':
     db = VectorDB("https://eur-lex.europa.eu/search.html?lang=en&text=industry&qid=1742919459451&type=quick&DTS_SUBDOM=LEGISLATION&scope=EURLEX&FM_CODED=REG")
