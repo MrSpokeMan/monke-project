@@ -76,6 +76,6 @@ class VectorDB:
         return query_vector[0][0]
         
 if __name__ == '__main__':
-    db = VectorDB("https://eur-lex.europa.eu/search.html?lang=pl&text=industry&qid=1742919459451&type=quick&DTS_SUBDOM=LEGISLATION&scope=EURLEX&FM_CODED=REG&page=1")
+    db = VectorDB("https://eur-lex.europa.eu/search.html?lang=pl&text=industry&qid=1742919459451&type=quick&DTS_SUBDOM=LEGISLATION&scope=EURLEX&FM_CODED=REG")
     resp = db.get_response("test")
     print(len(resp['entity']['vector']))

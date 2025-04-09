@@ -52,7 +52,7 @@ class EurlexDownloader:
         """
 
         pages = self.get_last_page_number()
-        pages = 500
+        pages = 2
         print(pages)
         for page in range(pages):
             response = requests.get(self.search_url + f"&page={page + 1}")
@@ -113,7 +113,7 @@ class EurlexDownloader:
                     if i % 2 == 1:
 
                         points.append({
-                            "name": name,  # Make sure `name` is defined earlier
+                            "name": name,
                             "text": p.get_text(strip=True)
                         })
         if old_format:

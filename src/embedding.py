@@ -1,5 +1,6 @@
 from FlagEmbedding import BGEM3FlagModel
 import download as download
+import numpy as np
 import time
 
 class EmbeddingModel():
@@ -12,10 +13,13 @@ class EmbeddingModel():
 
     def get_embedding(self):
         for ustawa in self.ustawy:
-            emb = self.model.encode(ustawa)
-            self.vector_ustaw.append(emb['dense_vecs'])
+            for point in ustawa:
+                text = point.get("text", "")
+                emb = self.model.encode(text)
+                self.vector_ustaw.append(emb['dense_vecs'])
 
 if __name__ == '__main__':
-    emb = EmbeddingModel("https://eur-lex.europa.eu/search.html?lang=pl&text=industry&qid=1742919459451&type=quick&DTS_SUBDOM=LEGISLATION&scope=EURLEX&FM_CODED=REG&page=1")
+    emb = EmbeddingModel("https://eur-lex.europa.eu/search.html?lang=pl&text=industry&qid=1742919459451&type=quick&DTS_SUBDOM=LEGISLATION&scope=EURLEX&FM_CODED=REG")
     emb.get_embedding()
-    # print("vector: ", emb.vector_ustaw, "rozmiar: ", emb.vector_ustaw.shape)
+    vecs = np.array(emb.vector_ustaw)
+    print("vector: ", vecs, "rozmiar: ", vecs.shape)
