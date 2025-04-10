@@ -1,6 +1,5 @@
-import numpy as np
+import json
 import pymilvus as pym
-from streamlit import metric
 
 import embedding
 
@@ -75,13 +74,14 @@ class VectorDB:
                                           data=[vector_prompt],
                                           search_params={'metric_type': 'COSINE'},
                                           output_fields=['text', 'name'],
-                                          limit=1
+                                          limit=5
                                           )
-        return query_vector
+
+        return query_vector, json.dumps(query_vector)
         
 if __name__ == '__main__':
     db = VectorDB("https://eur-lex.europa.eu/search.html?lang=en&text=industry&qid=1742919459451&type=quick&DTS_SUBDOM=LEGISLATION&scope=EURLEX&FM_CODED=REG")
     db()
-    resp = db.get_response("laws")
-    print(resp)
+    # resp, json_resp = db.get_response("laws")
+    # print(json_resp)
     # print(len(resp['entity']['vector']))
