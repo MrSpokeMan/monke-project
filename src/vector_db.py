@@ -73,7 +73,7 @@ class VectorDB:
                                           data=[vector_prompt],
                                           search_params={'metric_type': 'COSINE'},
                                           output_fields=['text', 'name'],
-                                          limit=5
+                                          limit=10
                                           )
 
         return query_vector, json.dumps(query_vector)
