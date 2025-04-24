@@ -52,7 +52,7 @@ class EurlexDownloader:
         """
 
         pages = self.get_last_page_number()
-        pages = 2
+        pages = 60
         print(pages)
         for page in range(pages):
             response = requests.get(self.search_url + f"&page={page + 1}")

@@ -1,7 +1,6 @@
 from FlagEmbedding import BGEM3FlagModel
 import download as download
 import numpy as np
-import time
 
 class EmbeddingModel():
     def __init__(self, url:str=""):
@@ -22,7 +21,6 @@ class EmbeddingModel():
             self.vector_ustaw.append(points)
 
 if __name__ == '__main__':
-    emb = EmbeddingModel("https://eur-lex.europa.eu/search.html?lang=pl&text=industry&qid=1742919459451&type=quick&DTS_SUBDOM=LEGISLATION&scope=EURLEX&FM_CODED=REG")
+    emb = EmbeddingModel("https://eur-lex.europa.eu/search.html?lang=pl&text=industry&qid=1742919459451&type=quick&DTS_SUBDOM=LEGISLATION&scope=EURLEX&FM_CODED=REG&page=1")
     emb.get_embedding()
-    vecs = np.array(emb.vector_ustaw)
-    print("vector: ", vecs, "rozmiar: ", vecs.shape)
+    print("vector: ", emb.vector_ustaw, "rozmiar: ", emb.vector_ustaw.shape)
