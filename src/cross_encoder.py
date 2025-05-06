@@ -17,8 +17,8 @@ class CrossEncoder:
         self.device = "cuda" if torch.cuda.is_available() else "cpu"
         self.x_encoder = HuggingFaceCrossEncoder(model_name='BAAI/bge-reranker-base', model_kwargs={'device': self.device})
 
-    def answer_query(self, query: str):
-        answer_list, _ = self.bot.db.get_response(query) # temporary solution because tool is not implemented yet
+    def answer_query(self, query: str, reordered_length: int = 10, search_width: int = 50):
+        answer_list, _ = self.bot.db.get_response(query, search_width) # temporary solution because tool is not implemented yet
 
         pairs = [
             (query, _truncate(f"{item['entity']['name']} {item['entity']['text']}"))
@@ -37,10 +37,11 @@ class CrossEncoder:
         new_results = [result for result, _ in reranked_results]
         reordered = LongContextReorder().transform_documents(new_results)
 
-        return reordered
+        return reordered[:reordered_length]
 
 
 if __name__ == '__main__':
     cross_encoder = CrossEncoder()
     query = "What is the law about?"
-    cross_encoder.answer_query(query)
+    result = cross_encoder.answer_query(query)
+    print(len(result))

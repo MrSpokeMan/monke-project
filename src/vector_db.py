@@ -63,7 +63,7 @@ class VectorDB:
         res = self.client.insert(collection_name=self.collection_name, data=data, progress_bar=True)
         print(f"Inserted {len(data)} vectors into collection {self.collection_name}, {res}")
 
-    def get_response(self, prompt):
+    def get_response(self, prompt, search_width = 50):
         # Getting response from the bot
         print("Getting response")
         emb = embedding.EmbeddingModel()
@@ -73,7 +73,7 @@ class VectorDB:
                                           data=[vector_prompt],
                                           search_params={'metric_type': 'COSINE'},
                                           output_fields=['text', 'name'],
-                                          limit=10
+                                          limit=search_width
                                           )
 
         return query_vector, json.dumps(query_vector)
