@@ -52,7 +52,7 @@ class EurlexDownloader:
         """
 
         pages = self.get_last_page_number()
-        pages = 60
+        pages = 10
         print(pages)
         for page in range(pages):
             response = requests.get(self.search_url + f"&page={page + 1}")
@@ -85,41 +85,43 @@ class EurlexDownloader:
         response = requests.get(url.replace('.', 'https://eur-lex.europa.eu'))
         soup_response = BeautifulSoup(response.text, features="html.parser")
 
-        new_format = False
-        old_format = False
-
-
+        # Determine format flags
         title_div = soup_response.find('div', {"class": 'eli-main-title'})
-        #print(title_div)
         title_parts = title_div.find_all('p', class_='oj-doc-ti') if title_div else []
-        subdivisions = soup_response.find_all('div', id=re.compile(r'^rct_'))
-
         plain_text = soup_response.find('div', {"id": 'TexteOnly'})
 
-        if (title_div != None and title_parts != None and subdivisions != None):
-            new_format = True
+        # Fetch all relevant paragraphs only once
+        all_paragraphs = soup_response.find_all('p')
+        doc_title_parts = [p for p in all_paragraphs if 'doc-ti' in p.get('class', [])]
+        article_titles = [p for p in all_paragraphs if 'ti-art' in p.get('class', [])]
+        group_headers = [p for p in all_paragraphs if 'oj-ti-grseq-1' in p.get('class', [])]
 
-        if (plain_text != None):
-            old_format = True
+        subdivisions = soup_response.find_all('div', id=re.compile(r'^rct_'), class_='eli-subdivision')
+
+        new_format = title_div and title_parts and subdivisions
+        old_format = bool(plain_text)
+        third_format = doc_title_parts and article_titles
+        fourth_format = title_div and title_parts and group_headers and not subdivisions
 
         points = []
+
+        # --- New format parsing ---
         if new_format:
-            name = "".join(p.get_text(strip=True) for p in title_parts)
-            subdivisions = soup_response.find_all('div', id=re.compile(r'^rct_'))
             print("new")
+            name = "".join(p.get_text(strip=True) for p in title_parts)
             for div in subdivisions:
                 paragraphs = div.find_all('p', class_='oj-normal')
                 for i, p in enumerate(paragraphs):
                     if i % 2 == 1:
-
                         points.append({
                             "name": name,
                             "text": p.get_text(strip=True)
                         })
+
+        # --- Old format parsing ---
         if old_format:
-            name = soup_response.find('strong').get_text(strip=True)
-            #print(name)
             print("old")
+            name = soup_response.find('strong').get_text(strip=True) if soup_response.find('strong') else "Unnamed Law"
             articles = []
             current_article = ""
             collecting = False
@@ -127,36 +129,89 @@ class EurlexDownloader:
             for p in plain_text.find_all('p'):
                 text = p.get_text(strip=True)
                 if text.startswith("Article "):
-                    collecting = True
-                    if collecting and current_article != "":
+                    if collecting and current_article:
                         articles.append(current_article)
-                        current_article = ""
-                elif collecting and p.get_text(strip=True) != "\n":
-                    current_article += p.get_text(strip=True)
+                    collecting = True
+                    current_article = text + "\n"
+                elif collecting and text:
+                    current_article += text + "\n"
 
-
-                #print(text)
-
-            if collecting and current_article != "":
+            if collecting and current_article:
                 articles.append(current_article)
 
             grouped_articles = ["\n".join(articles[i:i + 4]) for i in range(0, len(articles), 4)]
-            #print(grouped_articles)
 
             for text in grouped_articles:
                 points.append({
-                    "name": name,  # Make sure `name` is defined earlier
+                    "name": name,
                     "text": text
                 })
 
+        # --- Third format parsing ---
+        if third_format:
+            print("third")
+            name = " ".join(p.get_text(strip=True) for p in doc_title_parts)
 
-        if not old_format and not new_format:
-            print("exception")
+            all_paragraphs = soup_response.find_all('p')
+            collecting = False
+            current_article_text = ""
+
+            for p in all_paragraphs:
+                classes = p.get("class", [])
+                if "ti-art" in classes:
+                    if collecting and current_article_text.strip():
+                        points.append({
+                            "name": name,
+                            "text": current_article_text.strip()
+                        })
+                    # Start new article section
+                    collecting = True
+                    current_article_text = ""  # Reset text buffer
+                elif collecting and "normal" in classes:
+                    current_article_text += p.get_text(strip=True) + " "
+                elif collecting and "normal" not in classes:
+                    # If any non-normal paragraph breaks the article block
+                    if current_article_text.strip():
+                        points.append({
+                            "name": name,
+                            "text": current_article_text.strip()
+                        })
+                    collecting = False
+                    current_article_text = ""
+
+            # Append last article if still collecting
+            if collecting and current_article_text.strip():
+                points.append({
+                    "name": name,
+                    "text": current_article_text.strip()
+                })
+
+        if fourth_format:
+            print("fourth")
+            name = "".join(p.get_text(strip=True) for p in title_parts)
+            for header in group_headers:
+                current = header.find_next_sibling()
+                while current:
+                    if current.name == 'table':
+                        oj_normals = current.find_all('p', class_='oj-normal')
+                        combined_text = " ".join(p.get_text(strip=True) for p in oj_normals)
+                        if combined_text.strip():
+                            points.append({
+                                "name": name,
+                                "text": combined_text.strip()
+                            })
+                    elif current.name == 'p' and 'oj-ti-grseq-1' in current.get('class', []):
+                        break
+                    current = current.find_next_sibling()
+
+        if not (new_format or old_format or third_format or fourth_format):
+            print("exception: unknown format")
+
         return points
 
 if __name__ == "__main__":
     search_url = "https://eur-lex.europa.eu/search.html?lang=en&text=industry&qid=1742919459451&type=quick&DTS_SUBDOM=LEGISLATION&scope=EURLEX&FM_CODED=REG"
     down = EurlexDownloader(search_url)
     edu = down()
-    print(edu)
+    #print(edu)
     print("Hakuna")
