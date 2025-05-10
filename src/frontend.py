@@ -1,5 +1,4 @@
 import streamlit as st
-import vector_db
 import law_assistant
 
 class LawBot:

@@ -1,6 +1,5 @@
 from FlagEmbedding import BGEM3FlagModel
 import download as download
-import numpy as np
 
 class EmbeddingModel():
     def __init__(self, url:str=""):
