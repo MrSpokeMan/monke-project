@@ -16,8 +16,10 @@ class Evaluation:
 
     def __call__(self):
         result = self._generate_questions()
-        res = self._fill_dataset(result)
-        print(res)
+        result = self._fill_dataset(result)
+        # We return only questions and answers that were evaluated minimally in every categories above 3
+        result = _remove_low_scores(result)
+        return result
 
     def _call_llm(self, query: str):
         response = self.genai_client.models.generate_content(
@@ -55,7 +57,16 @@ class Evaluation:
                 print(f"Error processing evaluation: {e}")
         return outputs
 
+def _remove_low_scores(outputs):
+    filtered_outputs = []
+    for output in outputs:
+        # print(output["groundedness_score"], output["relevance_score"], output["standalone_score"])
+        if (output["groundedness_score"] >= 3 and
+            output["relevance_score"] >= 3 and
+            output["standalone_score"] >= 3):
+            filtered_outputs.append(output)
+    return filtered_outputs
 
 if __name__ == '__main__':
-    eval_test = Evaluation(context_list = ['This is a test context'])
-    eval_test()
+    eval_test = Evaluation(context_list = ['Law industry is adopted in every Europe country. It is a law that regulates the industry sector and its activities. It is a law that regulates the industry sector and its activities. It is a law that regulates the industry sector and its activities.'])
+    print(eval_test())
