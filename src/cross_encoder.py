@@ -1,5 +1,4 @@
-from pydantic.v1.utils import truncate
-
+import json
 import law_assistant
 from langchain_community.cross_encoders import HuggingFaceCrossEncoder
 from langchain_community.document_transformers import LongContextReorder
@@ -37,7 +36,7 @@ class CrossEncoder:
         new_results = [result for result, _ in reranked_results]
         reordered = LongContextReorder().transform_documents(new_results)
 
-        return reordered[:reordered_length]
+        return reordered[:reordered_length], json.dumps(reordered[:reordered_length])
 
 
 if __name__ == '__main__':

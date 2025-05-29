@@ -1,10 +1,12 @@
 import vector_db
 import ollama
+import cross_encoder
 
 class LawAssistant:
     def __init__(self):
         self.client = ollama.Client()
         self.db = vector_db.VectorDB()
+        self.x_encoder = cross_encoder.CrossEncoder()
         self.messages = []
 
     def generate_response(self, user_input):
@@ -32,6 +34,23 @@ class LawAssistant:
                             "required": ["prompt"],
                         },
                     }
+                },
+                {
+                    "type": "function",
+                    "function": {
+                        "name": "rerank_response",
+                        "description": "Rerank search results using cross-encoder for better relevance",
+                        "parameters": {
+                            "type": "object",
+                            "properties": {
+                                "prompt": {
+                                    "type": "string",
+                                    "description": "The user query to rerank results for",
+                                },
+                            },
+                            "required": ["prompt"],
+                        },
+                    },
                 }
             ]
         )
@@ -50,16 +69,18 @@ class LawAssistant:
         if response["message"].get("tool_calls"):
             available_functions = {
                 "get_response": self.db.get_response,
+                "rerank_response": self.x_encoder.answer_query,
             }
 
             for tool in response["message"]["tool_calls"]:
                 function_to_call = available_functions[tool["function"]["name"]]
                 function_args = tool["function"]["arguments"]
-                function_response, format = function_to_call(**function_args)
+                function_response, formated = function_to_call(**function_args)
+                print(f"Function {tool['function']['name']} called with arguments: {function_args} and returned: {function_response} or ({formated})")
                 # Add function response to the conversation
                 tool_message = {
                     "role": "tool",
-                    "content": format,
+                    "content": formated,
                 }
                 self.messages.append(tool_message)
 
