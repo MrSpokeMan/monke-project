@@ -4,7 +4,7 @@ from bs4 import BeautifulSoup
 
 def parse_template_1_first_format(soup: BeautifulSoup, title_parts, subdivisions) -> list[dict]:
     """Parse using the first (new) format with title_parts and subdivisions."""
-    print("Using first format")
+    #print("Using first format")
     points = []
     name = "".join(p.get_text(strip=True) for p in title_parts)
 
@@ -22,7 +22,7 @@ def parse_template_1_first_format(soup: BeautifulSoup, title_parts, subdivisions
 
 def parse_template_2_second_format(soup: BeautifulSoup, plain_text) -> list[dict]:
     """Parse using the second (old) format based on plain_text."""
-    print("Using second format")
+    #print("Using second format")
     points = []
 
     name_tag = soup.find('strong')
@@ -56,7 +56,7 @@ def parse_template_2_second_format(soup: BeautifulSoup, plain_text) -> list[dict
     return points
 def parse_template_3_third_format(soup: BeautifulSoup, doc_title_parts) -> list[dict]:
     """Parse using the third format (structured by 'ti-art' and 'normal' paragraph classes)."""
-    print("Using third format")
+    #print("Using third format")
     points = []
 
     name = " ".join(p.get_text(strip=True) for p in doc_title_parts)
@@ -96,7 +96,7 @@ def parse_template_3_third_format(soup: BeautifulSoup, doc_title_parts) -> list[
 
 def parse_template_4_fourth_format(soup: BeautifulSoup, title_parts, group_headers) -> list[dict]:
     """Parse using the fourth format (grouped sections with tables and 'oj-ti-grseq-1' headers)."""
-    print("Using fourth format")
+    #print("Using fourth format")
     points = []
 
     name = "".join(p.get_text(strip=True) for p in title_parts)

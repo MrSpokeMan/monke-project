@@ -8,7 +8,7 @@ class EurlexDownloader:
     def __init__(self, search_url):
         self.search_url = search_url
         self.all_ustawy = []
-        
+
     def __call__(self):
         self.download_eurlex_page()
         # return self.convert_list_to_array()
@@ -40,7 +40,7 @@ class EurlexDownloader:
 
         return 1  # Fallback if no last page link is found
 
-        
+
     def download_eurlex_page(self) -> list[list[dict]]:
         """Get all the HTML content of the active laws from the search page
 
@@ -52,15 +52,16 @@ class EurlexDownloader:
         """
 
         pages = self.get_last_page_number()
-        #pages = 10
-        print(pages)
-        for page in range(pages):
+        start_page = 0
+        end_page = 10
+        print(end_page-start_page)
+        for page in range(start_page, end_page):
             response = requests.get(self.search_url + f"&page={page + 1}")
             print(self.search_url + f"&page={page + 1}")
             soup_response = BeautifulSoup(response.text, features="html.parser")
 
 
-        
+
             ustawy = soup_response.find_all('div', {"class": 'SearchResult'})
             #print(ustawy)
             ustawy_in_force = []
@@ -116,17 +117,55 @@ class EurlexDownloader:
         points = []
 
         if title_div and title_parts and subdivisions:
-            return parse_template_1_first_format(soup_response, title_parts, subdivisions)
+            print("Using first format")
+            parsed = self._split_if_needed(parse_template_1_first_format(soup_response, title_parts, subdivisions))
         elif plain_text:
-            return parse_template_2_second_format(soup_response, plain_text)
+            print("Using second format")
+            parsed = self._split_if_needed(parse_template_2_second_format(soup_response, plain_text))
         elif doc_title_parts and article_titles:
-            return parse_template_3_third_format(soup_response, doc_title_parts)
+            print("Using third format")
+            parsed = self._split_if_needed(parse_template_3_third_format(soup_response, doc_title_parts))
         elif title_div and title_parts and group_headers and not subdivisions:
-            return parse_template_4_fourth_format(soup_response, title_parts, group_headers)
+            print("Using fourth format")
+            parsed = self._split_if_needed(parse_template_4_fourth_format(soup_response, title_parts, group_headers))
         else:
             print("exception: unknown format")
             return []
 
+        for item in parsed:
+            if len(item.get("text", "")) >= 10000:
+                print("Length of text:", len(item.get("text", "")))
+
+        return parsed
+
+
+    def _split_if_needed(self, parsed_items, max_len=10000):
+        new_items = []
+
+        for item in parsed_items:
+            text = item.get("text", "")
+            name = item.get("name", "")
+
+            if len(text) <= max_len:
+                new_items.append(item)
+                continue
+
+            print(f"Splitting '{name}' (length {len(text)})...")
+
+            # Split at \n boundaries
+            sentences = text.split('\n')
+            chunk = ""
+            for sentence in sentences:
+                if len((chunk + sentence + '\n').encode('utf-8')) <= max_len:
+                    chunk += sentence + '\n'
+                else:
+                    new_items.append({"name": name, "text": chunk.strip()})
+                    chunk = sentence + '\n'
+
+            if chunk.strip():
+                new_items.append({"name": name, "text": chunk.strip()})
+
+        return new_items
 
 if __name__ == "__main__":
     search_url = "https://eur-lex.europa.eu/search.html?lang=en&text=industry&qid=1742919459451&type=quick&DTS_SUBDOM=LEGISLATION&scope=EURLEX&FM_CODED=REG"
