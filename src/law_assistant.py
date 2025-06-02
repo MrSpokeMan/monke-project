@@ -6,7 +6,7 @@ class LawAssistant:
     def __init__(self):
         self.client = ollama.Client()
         self.db = vector_db.VectorDB()
-        self.x_encoder = cross_encoder.CrossEncoder()
+        self.x_encoder = cross_encoder.CrossEncoder(self.db)
         self.messages = []
 
     def generate_response(self, user_input):
@@ -55,6 +55,24 @@ class LawAssistant:
             ]
         )
 
+        #if we want answer from both of the models
+        # prompt = response["message"]["tool_calls"][0]["function"]["arguments"]["prompt"]
+        # vec, vec_form = self.db.get_response(prompt)
+        # reranked, reranked_form = self.x_encoder.answer_query(prompt)
+        #
+        # self.messages_vec.append({
+        #     "role": "tool",
+        #     "name": "get_response",
+        #     "content": vec_form
+        # })
+        #
+        # self.messages_reranked.append({
+        #     "role": "tool",
+        #     "name": "rerank_response",
+        #     "content": reranked_form
+        # })
+
+
         # Add the model's response to the conversation history
         self.messages.append(response["message"])
 
@@ -76,7 +94,6 @@ class LawAssistant:
                 function_to_call = available_functions[tool["function"]["name"]]
                 function_args = tool["function"]["arguments"]
                 function_response, formated = function_to_call(**function_args)
-                print(f"Function {tool['function']['name']} called with arguments: {function_args} and returned: {function_response} or ({formated})")
                 # Add function response to the conversation
                 tool_message = {
                     "role": "tool",

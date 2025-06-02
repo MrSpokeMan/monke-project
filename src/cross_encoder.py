@@ -1,5 +1,5 @@
 import json
-import law_assistant
+import vector_db
 from langchain_community.cross_encoders import HuggingFaceCrossEncoder
 from langchain_community.document_transformers import LongContextReorder
 import torch
@@ -11,13 +11,13 @@ def _truncate(text: str, max_length: int = 512) -> str:
     return text
 
 class CrossEncoder:
-    def __init__(self):
-        self.bot = law_assistant.LawAssistant()
+    def __init__(self, vector_db: vector_db.VectorDB = None):
+        self.db = vector_db
         self.device = "cuda" if torch.cuda.is_available() else "cpu"
         self.x_encoder = HuggingFaceCrossEncoder(model_name='BAAI/bge-reranker-base', model_kwargs={'device': self.device})
 
     def answer_query(self, query: str, reordered_length: int = 10, search_width: int = 50):
-        answer_list, _ = self.bot.db.get_response(query, search_width) # temporary solution because tool is not implemented yet
+        answer_list, _ = self.db.get_response(query, search_width)
 
         pairs = [
             (query, _truncate(f"{item['entity']['name']} {item['entity']['text']}"))
