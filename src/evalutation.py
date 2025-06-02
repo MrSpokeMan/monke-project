@@ -60,7 +60,6 @@ class Evaluation:
 def _remove_low_scores(outputs):
     filtered_outputs = []
     for output in outputs:
-        # print(output["groundedness_score"], output["relevance_score"], output["standalone_score"])
         if (output["groundedness_score"] >= 3 and
             output["relevance_score"] >= 3 and
             output["standalone_score"] >= 3):
