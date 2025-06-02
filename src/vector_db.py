@@ -1,13 +1,17 @@
 import pymilvus as pym
 import json
 import embedding
+from cli_utils import parse_cli_args, DEFAULT_EURLEX_URL
 
 class VectorDB:
-    def __init__(self, link:str=""):
+    def __init__(self, source="web", link="", json_path="", save_path=""):
         print("Initializing VectorDB")
         self.client = pym.MilvusClient(uri='http://localhost:19530', token='root:Milvus')
         self.collection_name = 'laws'
+        self.source = source
         self.link = link
+        self.json_path = json_path
+        self.save_path = save_path
 
     def __call__(self):
         self._fetch_vector()
@@ -17,15 +21,16 @@ class VectorDB:
 
     def _fetch_vector(self):
         print("Fetching vector")
-        if self.link:
-            emb = embedding.EmbeddingModel(self.link)
-            emb.get_embedding()
-            self.ustawy = emb.vector_ustaw
-            self.vector_size = self.ustawy[0][0]['vector'].shape[0]
-            print("Vector size: ", self.vector_size)
-            print("Vector fetched")
-        else:
-            print("No link, skipping vector fetching")
+        emb = embedding.EmbeddingModel(
+            source=self.source,
+            path_or_url=(self.json_path if self.source == "json" else self.link),
+            save_json_path=self.save_path
+        )
+        emb.get_embedding()
+        self.ustawy = emb.vector_ustaw
+        self.vector_size = self.ustawy[0][0]['vector'].shape[0]
+        print("Vector size:", self.vector_size)
+        print("Vector fetched")
 
     def _create_collection(self):
         if not self.client.has_collection(self.collection_name):
@@ -60,8 +65,8 @@ class VectorDB:
                              })
                 id += 1
 
-        res = self.client.insert(collection_name=self.collection_name, data=data, progress_bar=True)
-        print(f"Inserted {len(data)} vectors into collection {self.collection_name}, {res}")
+        self.client.insert(collection_name=self.collection_name, data=data, progress_bar=True)
+        print(f"Inserted {len(data)} vectors into collection {self.collection_name}")
 
     def get_response(self, prompt, search_width = 50):
         # Getting response from the bot
@@ -79,6 +84,14 @@ class VectorDB:
         return query_vector, json.dumps(query_vector)
         
 if __name__ == '__main__':
-    db = VectorDB("https://eur-lex.europa.eu/search.html?lang=en&text=industry&qid=1742919459451&type=quick&DTS_SUBDOM=LEGISLATION&scope=EURLEX&FM_CODED=REG")
+
+
+    args = parse_cli_args()
+    db = VectorDB(
+        source=args.source,
+        link=args.path_or_url if args.source == "web" else "",
+        json_path=args.path_or_url if args.source == "json" else "",
+        save_path=args.save or ""
+    )
     db()
     # print(len(resp['entity']['vector']))

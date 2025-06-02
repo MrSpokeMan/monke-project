@@ -2,6 +2,8 @@ import download
 import json
 import random
 from typing import List, Dict, Optional, Union
+from cli_utils import parse_cli_args, DEFAULT_EURLEX_URL
+import argparse
 
 
 class EurlexSelector:
@@ -58,10 +60,22 @@ class EurlexSelector:
 
 
 if __name__ == "__main__":
-    search_url = "https://eur-lex.europa.eu/search.html?lang=en&text=industry&qid=1742919459451&type=quick&DTS_SUBDOM=LEGISLATION&scope=EURLEX&FM_CODED=REG"
-    downloader = download.EurlexDownloader(search_url)
-    data = downloader()
+    parser = argparse.ArgumentParser(description="Filter Eurlex data based on selection probability.")
+    parser.add_argument("source", choices=["web", "json"], help="Data source")
+    parser.add_argument("path_or_url", nargs="?", default=DEFAULT_EURLEX_URL, help="URL (for web) or path to JSON file (for json)")
+    parser.add_argument("--save", nargs="?", const="filtered_data.json", help="Path to save filtered JSON")
+    parser.add_argument("--probability", type=float, default=0.05, help="Selection probability (default: 0.05)")
+    args = parser.parse_args()
 
-    selector = EurlexSelector(data, selection_probability=0.05)  # e.g. 30% chance per dict
-    selected = selector("filtered_data.json")
-    print("hakuna")
+    # Load data
+    if args.source == "web":
+        downloader = download.EurlexDownloader(args.path_or_url)
+        data = downloader()
+    else:
+        downloader = download.EurlexDownloader("")
+        data = downloader.load_from_json(args.path_or_url)
+
+    # Run filtering
+    selector = EurlexSelector(data, selection_probability=args.probability)
+    selected = selector(args.save)
+    print(f"Selected {len(selected)} entries out of {sum(len(x) for x in data)}.")
