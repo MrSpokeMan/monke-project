@@ -52,7 +52,7 @@ class EurlexDownloader:
         """
 
         pages = self.get_last_page_number()
-        pages = 200
+        #pages = 10
         print(pages)
         for page in range(pages):
             response = requests.get(self.search_url + f"&page={page + 1}")
@@ -75,11 +75,21 @@ class EurlexDownloader:
 
             for ustawa in ustawy_in_force:
                 link = ustawa.find_all('a', class_='piwik_download')
-        #        print(link[1]['href'])
-                if 'HTML' in link[1]['href']:
-                    tab = self._get_html_content(link[1]['href'])
-                    if (tab != []):
-                     self.all_ustawy.append(tab)
+
+                # Ensure there are at least 2 links and the second one is an HTML file
+                if len(link) < 2:
+                    print("Less than 2 links found, skipping.")
+                    continue
+
+                href = link[1].get('href', '')
+                if 'HTML' not in href:
+                    print("Second link is not an HTML version, skipping.")
+                    continue
+
+                # Safe to fetch and parse
+                tab = self._get_html_content(href)
+                if tab:
+                    self.all_ustawy.append(tab)
 
     def _get_html_content(self, url):
         response = requests.get(url.replace('.', 'https://eur-lex.europa.eu'))

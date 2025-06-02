@@ -62,5 +62,6 @@ if __name__ == "__main__":
     downloader = download.EurlexDownloader(search_url)
     data = downloader()
 
-    selector = EurlexSelector(data, selection_probability=0.1)  # e.g. 30% chance per dict
+    selector = EurlexSelector(data, selection_probability=0.05)  # e.g. 30% chance per dict
     selected = selector("filtered_data.json")
+    print("hakuna")

@@ -21,6 +21,6 @@ class EmbeddingModel():
             self.vector_ustaw.append(points)
 
 if __name__ == '__main__':
-    emb = EmbeddingModel("https://eur-lex.europa.eu/search.html?lang=pl&text=industry&qid=1742919459451&type=quick&DTS_SUBDOM=LEGISLATION&scope=EURLEX&FM_CODED=REG&page=1")
+    emb = EmbeddingModel("https://eur-lex.europa.eu/search.html?lang=pl&text=industry&qid=1742919459451&type=quick&DTS_SUBDOM=LEGISLATION&scope=EURLEX&FM_CODED=REG")
     emb.get_embedding()
     print("vector: ", emb.vector_ustaw, "rozmiar: ", emb.vector_ustaw.shape)
