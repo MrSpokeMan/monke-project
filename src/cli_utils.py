@@ -1,7 +1,7 @@
 import argparse
 
 DEFAULT_EURLEX_URL = (
-    "https://eur-lex.europa.eu/search.html?lang=pl&text=industry&qid=1742919459451&type=quick&DTS_SUBDOM=LEGISLATION&scope=EURLEX&FM_CODED=REG"
+    "https://eur-lex.europa.eu/search.html?lang=en&text=industry&qid=1742919459451&type=quick&DTS_SUBDOM=LEGISLATION&scope=EURLEX&FM_CODED=REG"
 )
 
 DEFAULT_SAVE_FILE = "scraped_data.json"

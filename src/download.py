@@ -48,9 +48,9 @@ class EurlexDownloader:
         return 1
 
     def download_eurlex_page(self) -> list[list[dict]]:
-        pages = self.get_last_page_number()
+        end_page = self.get_last_page_number()
         start_page = 0
-        end_page = 10
+        #end_page = 100
         print(end_page - start_page)
         for page in range(start_page, end_page):
             response = requests.get(self.search_url + f"&page={page + 1}")
@@ -106,31 +106,70 @@ class EurlexDownloader:
         # Split long items
         return self._split_if_needed(parsed)
 
-    def _split_if_needed(self, parsed_items, max_len=10000):
-        new_items = []
-        for item in parsed_items:
-            text = item.get("text", "")
-            name = item.get("name", "")
+    def _split_if_needed(self, parsed_law, max_len=10000):
+        result = []
+
+        def find_split_index(text, breakpoints):
+            # Binary search to find the last breakpoint where utf-8 encoded length ≤ max_len
+            left, right = 0, len(breakpoints) - 1
+            best = None
+            while left <= right:
+                mid = (left + right) // 2
+                candidate = text[:breakpoints[mid]]
+                if len(candidate.encode("utf-8")) <= max_len:
+                    best = breakpoints[mid]
+                    left = mid + 1
+                else:
+                    right = mid - 1
+            return best
+
+        for section in parsed_law:
+            name = section.get("name", "")
+            text = section.get("text", "")
 
             if len(text.encode("utf-8")) <= max_len:
-                new_items.append(item)
+                result.append({"name": name, "text": text})
                 continue
 
-            print(f"Splitting '{name}' (length {len(text.encode('utf-8'))} bytes)...")
+            print(f"Splitting section from law '{name}' (length {len(text.encode('utf-8'))} bytes)...")
 
-            sentences = text.split('\n')
-            chunk = ""
-            for sentence in sentences:
-                if len((chunk + sentence + '\n').encode('utf-8')) <= max_len:
-                    chunk += sentence + '\n'
-                else:
-                    new_items.append({"name": name, "text": chunk.strip()})
-                    chunk = sentence + '\n'
+            start = 0
+            while start < len(text):
+                remaining_text = text[start:]
+                if len(remaining_text.encode("utf-8")) <= max_len:
+                    result.append({"name": name, "text": remaining_text.strip()})
+                    break
 
-            if chunk.strip():
-                new_items.append({"name": name, "text": chunk.strip()})
+                # First try newline split
+                newline_indices = [i + 1 for i, c in enumerate(remaining_text) if c == '\n']
+                split_at = find_split_index(remaining_text, newline_indices)
 
-        return new_items
+                # If no good newline found, try spaces
+                if split_at is None:
+                    space_indices = [i + 1 for i, c in enumerate(remaining_text) if c == ' ']
+                    split_at = find_split_index(remaining_text, space_indices)
+
+                # If no break point found, fallback to brute cutoff
+                if split_at is None:
+                    # Brute force max-length safe cutoff
+                    end = 0
+                    while end < len(remaining_text):
+                        if len(remaining_text[:end].encode("utf-8")) > max_len:
+                            break
+                        end += 1
+                    split_at = end - 1
+
+                chunk = remaining_text[:split_at].strip()
+                result.append({"name": name, "text": chunk})
+                start += split_at
+
+        # Final validation
+        for i, entry in enumerate(result):
+            byte_len = len(entry["text"].encode("utf-8"))
+            if byte_len > max_len:
+                print(f"Chunk {i} too long after split: {byte_len} bytes — name: {entry['name'][:60]}...")
+
+        return result
 
 
 

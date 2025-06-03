@@ -41,7 +41,7 @@ class VectorDB:
                     pym.FieldSchema(name='id', dtype=pym.DataType.INT64, is_primary=True, auto_id=False),
                     pym.FieldSchema(name='vector', dtype=pym.DataType.FLOAT_VECTOR, dim=self.vector_size),
                     pym.FieldSchema(name='text', dtype=pym.DataType.VARCHAR, max_length=int(1e4)),
-                    pym.FieldSchema(name="name", dtype=pym.DataType.VARCHAR, max_length=int(1e3))
+                    pym.FieldSchema(name="name", dtype=pym.DataType.VARCHAR, max_length=int(3e3))
                 ],
                 description="ustawy"
             )
@@ -58,15 +58,23 @@ class VectorDB:
         id = 0
         for ustawa in self.ustawy:
             for punkt in ustawa:
-                data.append({'id': id,
-                             'vector': punkt['vector'].tolist(),
-                             'text': punkt['text'],
-                             'name': punkt['name']
-                             })
+                data.append({
+                    'id': id,
+                    'vector': punkt['vector'].tolist(),
+                    'text': punkt['text'],
+                    'name': punkt['name']
+                })
                 id += 1
 
-        self.client.insert(collection_name=self.collection_name, data=data, progress_bar=True)
-        print(f"Inserted {len(data)} vectors into collection {self.collection_name}")
+        batch_size = 500  # You can adjust this number
+        for i in range(0, len(data), batch_size):
+            batch = data[i:i + batch_size]
+            res = self.client.insert(
+                collection_name=self.collection_name,
+                data=batch,
+                progress_bar=True
+            )
+            print(f"Inserted batch {i // batch_size + 1}, size: {len(batch)}")
 
     def get_response(self, prompt, search_width = 50):
         # Getting response from the bot
