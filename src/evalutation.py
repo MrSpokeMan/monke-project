@@ -2,6 +2,7 @@ from tqdm.auto import tqdm
 from prompts import QA_GENERATION_PROMPT, QA_CRITIQUE_GROUNDEDNESS, QA_CRITIQUE_RELEVANCE, QA_CRITIQUE_STANDALONE
 from google import genai
 from dotenv import load_dotenv
+from create_dataset import EurlexSelector
 
 load_dotenv()
 
@@ -67,5 +68,8 @@ def _remove_low_scores(outputs):
     return filtered_outputs
 
 if __name__ == '__main__':
-    eval_test = Evaluation(context_list = ['Law industry is adopted in every Europe country. It is a law that regulates the industry sector and its activities. It is a law that regulates the industry sector and its activities. It is a law that regulates the industry sector and its activities.'])
-    print(eval_test())
+    selector = EurlexSelector(data="filtered_data.json")
+    context_list = [item["text"] for item in selector.original_data if "text" in item]
+
+    eval_test = Evaluation(context_list = context_list)
+    eval_test()

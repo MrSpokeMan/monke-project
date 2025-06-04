@@ -3,5 +3,9 @@
   <component name="Black">
     <option name="sdkName" value="Python 3.9 (monke-project)" />
   </component>
+<<<<<<< HEAD
   <component name="ProjectRootManager" version="2" project-jdk-name="Python 3.9 (monke-project)" project-jdk-type="Python SDK" />
+=======
+  <component name="ProjectRootManager" version="2" project-jdk-name="Python 3.12 (Monkey_Project)" project-jdk-type="Python SDK" />
+>>>>>>> 410b1fdbba5468ddcd1b52b5e7c64fe8c35192fb
 </project>
