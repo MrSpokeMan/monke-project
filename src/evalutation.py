@@ -1,13 +1,23 @@
+import os
+
+import ollama
+from langchain_community.llms.ollama import Ollama
 from tqdm.auto import tqdm
 from prompts import QA_GENERATION_PROMPT, QA_CRITIQUE_GROUNDEDNESS, QA_CRITIQUE_RELEVANCE, QA_CRITIQUE_STANDALONE
 from google import genai
 from dotenv import load_dotenv
+<<<<<<< Updated upstream
 from create_dataset import EurlexSelector
+=======
+import requests
+import json
+>>>>>>> Stashed changes
 
 load_dotenv()
 
 class Evaluation:
-    def __init__(self, context_list: list[str]):
+    def __init__(self, context_list: list[dict[str, str]]):
+        self.client = ollama.Client()
         try:
             self.genai_client = genai.Client()
         except ValueError:
@@ -23,25 +33,34 @@ class Evaluation:
         return result
 
     def _call_llm(self, query: str):
-        response = self.genai_client.models.generate_content(
-            model="gemini-2.5-flash-preview-04-17",
-            contents=query,
+        response = self.client.chat(
+            model="llama3.2",
+            messages=[
+                {
+                    "role": "user",
+                    "content": query
+                }
+            ]
         )
-        return response.text
+        return response["message"]["content"]
 
     def _generate_questions(self):
         result_list = []
-        for context in tqdm(self.context_list):
-            result_dict = {"context": context}
-            query = QA_GENERATION_PROMPT.format(context=context)
+        for context in tqdm(self.context_list, desc="Generating questions and answers", unit="q_and_a"):
+            result_dict = {"name": context["name"], "context": context["text"]}
+            query = QA_GENERATION_PROMPT.format(context=context["text"])
             response = self._call_llm(query)
-            result_dict["question"] = response.split("Factoid question: ")[1].split("Answer: ")[0].strip()
-            result_dict["answer"] = response.split("Answer: ")[1].strip()
+            try:
+                result_dict["question"] = response.split("Factoid question: ")[1].split("Answer: ")[0].strip()
+                result_dict["answer"] = response.split("Answer: ")[1].strip()
+            except IndexError:
+                print(f"Error parsing response: {response}")
+                continue
             result_list.append(result_dict)
         return result_list
 
     def _fill_dataset(self, outputs):
-        for output in tqdm(outputs):
+        for output in tqdm(outputs, desc="Evaluating questions", unit="eval_q"):
             evaluations = {
                 "groundedness": self._call_llm(QA_CRITIQUE_GROUNDEDNESS.format(question=output["question"], context=output["context"])),
                 "relevance": self._call_llm(QA_CRITIQUE_RELEVANCE.format(question=output["question"])),
@@ -68,8 +87,13 @@ def _remove_low_scores(outputs):
     return filtered_outputs
 
 if __name__ == '__main__':
+<<<<<<< Updated upstream
     selector = EurlexSelector(data="filtered_data.json")
     context_list = [item["text"] for item in selector.original_data if "text" in item]
 
     eval_test = Evaluation(context_list = context_list)
     eval_test()
+=======
+    eval_test = Evaluation(context_list = [{"name": "Test Law", "text": "This is a test law text for evaluation purposes."}])
+    print(eval_test())
+>>>>>>> Stashed changes
