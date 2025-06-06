@@ -1,9 +1,11 @@
 import download
 import json
 import random
-from typing import List, Dict, Optional, Union
-from cli_utils import parse_cli_args, DEFAULT_EURLEX_URL
 import argparse
+import os
+import sys
+from typing import List, Dict, Optional, Union
+from cli_utils import parse_cli_args, DEFAULT_EURLEX_URL, DEFAULT_SAVE_FILE
 
 
 class EurlexSelector:
@@ -13,7 +15,6 @@ class EurlexSelector:
         selection_probability: float = 1.0,
         seed: Optional[int] = None
     ):
-
         self.selection_probability = selection_probability
         self.seed = seed
         self.selected_data: List[Dict[str, str]] = []
@@ -50,32 +51,50 @@ class EurlexSelector:
 
     def __call__(self, filepath: Optional[str] = None):
         """Executes filtering and optionally saves to JSON."""
+        if self.original_data and isinstance(self.original_data[0], list):
+            self._flatten_and_store(self.original_data)
         self.filter_data()
         if filepath:
             self.save_to_json(filepath)
         return self.selected_data
 
 
-
-
-
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Filter Eurlex data based on selection probability.")
-    parser.add_argument("source", choices=["web", "json"], help="Data source")
-    parser.add_argument("path_or_url", nargs="?", default=DEFAULT_EURLEX_URL, help="URL (for web) or path to JSON file (for json)")
-    parser.add_argument("--save", nargs="?", const="filtered_data.json", help="Path to save filtered JSON")
-    parser.add_argument("--probability", type=float, default=0.05, help="Selection probability (default: 0.05)")
-    args = parser.parse_args()
 
-    # Load data
-    if args.source == "web":
-        downloader = download.EurlexDownloader(args.path_or_url)
-        data = downloader()
+    # Temporarily strip custom args before calling parse_cli_args
+    original_argv = sys.argv.copy()
+    sys.argv = [sys.argv[0]] + [
+        arg for arg in sys.argv[1:]
+        if not arg.startswith("--seed") and not arg.startswith("--probability")
+    ]
+    args = parse_cli_args()
+    sys.argv = original_argv
+
+    # Parse extra args (seed and probability)
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--seed", type=int)
+    parser.add_argument("--probability", type=float, default=0.05)
+    extra_args, _ = parser.parse_known_args()
+
+    seed = extra_args.seed if extra_args.seed is not None else random.randint(0, 2 ** 32 - 1)
+    probability = extra_args.probability
+
+    selector = EurlexSelector(
+        data=args.path_or_url,
+        selection_probability=probability,
+        seed=seed
+    )
+
+    if args.save:
+        save_name = args.save
+        if args.save == "scraped_data.json":
+            save_name = f"test_dataset_{seed}_{probability}"
+
+        save_path = os.path.join(os.path.dirname(__file__), "..", "test", save_name)
+        save_path = os.path.abspath(save_path)
+        os.makedirs(os.path.dirname(save_path), exist_ok=True)
+        selector(filepath=save_path)
     else:
-        downloader = download.EurlexDownloader("")
-        data = downloader.load_from_json(args.path_or_url)
+        selector()
 
-    # Run filtering
-    selector = EurlexSelector(data, selection_probability=args.probability)
-    selected = selector(args.save)
-    print(f"Selected {len(selected)} entries out of {sum(len(x) for x in data)}.")
+    print(f"Selected {len(selector.selected_data)} entries out of {len(selector.original_data)}.")
