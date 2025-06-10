@@ -24,7 +24,8 @@ class VectorDB:
         emb = embedding.EmbeddingModel(
             source=self.source,
             path_or_url=(self.json_path if self.source == "json" else self.link),
-            save_json_path=self.save_path
+            save_json_path=self.save_path,
+            download_data=True
         )
         emb.get_embedding()
         self.ustawy = emb.vector_ustaw
@@ -76,9 +77,7 @@ class VectorDB:
             )
             print(f"Inserted batch {i // batch_size + 1}, size: {len(batch)}")
 
-    def get_response(self, prompt, search_width = 50):
-        # Getting response from the bot
-        print("Getting response")
+    def get_response(self, prompt, search_width = 10):
         emb = embedding.EmbeddingModel()
         vector_prompt = emb.model.encode(prompt)['dense_vecs'].tolist()
 

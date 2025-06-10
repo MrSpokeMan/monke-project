@@ -4,7 +4,7 @@ DEFAULT_EURLEX_URL = (
     "https://eur-lex.europa.eu/search.html?lang=en&text=industry&qid=1742919459451&type=quick&DTS_SUBDOM=LEGISLATION&scope=EURLEX&FM_CODED=REG"
 )
 
-DEFAULT_SAVE_FILE = "scraped_data.json"
+DEFAULT_SAVE_FILE = "./data/scraped_data.json"
 
 
 def parse_cli_args():

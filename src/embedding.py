@@ -6,24 +6,24 @@ from cli_utils import DEFAULT_EURLEX_URL, parse_cli_args
 import download as download
 
 class EmbeddingModel:
-    def __init__(self, source="web", path_or_url=DEFAULT_EURLEX_URL, save_json_path=""):
+    def __init__(self, source="web", path_or_url=DEFAULT_EURLEX_URL, save_json_path="", download_data:bool = False):
         self.vector_ustaw = []
         self.device = "cuda" if torch.cuda.is_available() else "cpu"
-        print("Using device:", self.device)
         self.model = BGEM3FlagModel('BAAI/bge-m3', devices=self.device)
 
-        if source == "web":
-            self.down = download.EurlexDownloader(path_or_url)
-            self.ustawy = self.down()
-            if save_json_path:
-                self.down.save_to_json(self.ustawy, save_json_path)
+        if download_data:
+            if source == "web":
+                self.down = download.EurlexDownloader(path_or_url)
+                self.ustawy = self.down()
+                if save_json_path:
+                    self.down.save_to_json(self.ustawy, save_json_path)
 
-        elif source == "json":
-            self.down = download.EurlexDownloader("")
-            self.ustawy = self.down.load_from_json(path_or_url)
+            elif source == "json":
+                self.down = download.EurlexDownloader("")
+                self.ustawy = self.down.load_from_json(path_or_url)
 
-        else:
-            raise ValueError("Invalid source. Choose 'web' or 'json'.")
+            else:
+                raise ValueError("Invalid source. Choose 'web' or 'json'.")
 
     def get_embedding(self):
         for ustawa in tqdm(self.ustawy, unit="law", desc="Processing laws"):

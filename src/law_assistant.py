@@ -1,15 +1,15 @@
-import vector_db
+from vector_db import VectorDB
 import ollama
-import cross_encoder
+from cross_encoder import CrossEncoder
 
 class LawAssistant:
-    def __init__(self):
+    def __init__(self, vector_db: VectorDB = None, cross_encoder: CrossEncoder = None):
         self.client = ollama.Client()
-        self.db = vector_db.VectorDB()
-        self.x_encoder = cross_encoder.CrossEncoder(self.db)
+        self.db = vector_db if vector_db else VectorDB()
+        self.x_encoder = cross_encoder if cross_encoder else CrossEncoder(self.db)
         self.messages = []
 
-    def generate_response(self, user_input):
+    def generate_response(self, user_input, reranker: bool = True, full_resturn: bool = False):
         self.messages = [
                 {"role": "user", "content": user_input}
         ]
@@ -34,43 +34,9 @@ class LawAssistant:
                             "required": ["prompt"],
                         },
                     }
-                },
-                {
-                    "type": "function",
-                    "function": {
-                        "name": "rerank_response",
-                        "description": "Rerank search results using cross-encoder for better relevance",
-                        "parameters": {
-                            "type": "object",
-                            "properties": {
-                                "prompt": {
-                                    "type": "string",
-                                    "description": "The user query to rerank results for",
-                                },
-                            },
-                            "required": ["prompt"],
-                        },
-                    },
                 }
             ]
         )
-
-        #if we want answer from both of the models
-        # prompt = response["message"]["tool_calls"][0]["function"]["arguments"]["prompt"]
-        # vec, vec_form = self.db.get_response(prompt)
-        # reranked, reranked_form = self.x_encoder.answer_query(prompt)
-        #
-        # self.messages_vec.append({
-        #     "role": "tool",
-        #     "name": "get_response",
-        #     "content": vec_form
-        # })
-        #
-        # self.messages_reranked.append({
-        #     "role": "tool",
-        #     "name": "rerank_response",
-        #     "content": reranked_form
-        # })
 
 
         # Add the model's response to the conversation history
@@ -86,14 +52,17 @@ class LawAssistant:
         # Process function calls made by the model
         if response["message"].get("tool_calls"):
             available_functions = {
-                "get_response": self.db.get_response,
-                "rerank_response": self.x_encoder.answer_query,
+                "get_response": self.db.get_response
             }
 
             for tool in response["message"]["tool_calls"]:
                 function_to_call = available_functions[tool["function"]["name"]]
                 function_args = tool["function"]["arguments"]
+                if reranker:
+                    function_args["search_width"] = 50
                 function_response, formated = function_to_call(**function_args)
+                if reranker:
+                    function_response, formated = self.x_encoder.answer_query(user_input, function_response)
                 # Add function response to the conversation
                 tool_message = {
                     "role": "tool",
@@ -105,6 +74,8 @@ class LawAssistant:
         final_response = self.client.chat(model="llama3.2", messages=self.messages)
 
         self.messages.append(final_response["message"])
+        if full_resturn:
+            return final_response["message"]["content"], function_response
         return final_response["message"]["content"]
 
 
