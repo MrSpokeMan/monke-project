@@ -1,3 +1,4 @@
+from openai import OpenAI
 from vector_db import VectorDB
 import ollama
 from cross_encoder import CrossEncoder
@@ -5,11 +6,35 @@ from cross_encoder import CrossEncoder
 class LawAssistant:
     def __init__(self, vector_db: VectorDB = None, cross_encoder: CrossEncoder = None):
         self.client = ollama.Client()
+        self.openai_client = OpenAI()
         self.db = vector_db if vector_db else VectorDB()
         self.x_encoder = cross_encoder if cross_encoder else CrossEncoder(self.db)
         self.messages = []
 
-    def generate_response(self, user_input, reranker: bool = True, full_resturn: bool = False):
+    def generate_response_research(self, query: str, reranker: bool = True):
+        """
+        Generates a response for a given query using the vector database and cross-encoder.
+        :param query: The user's query.
+        :param reranker: Whether to use the cross-encoder for reranking results.
+        :return: A formatted response string.
+        """
+        if reranker:
+            response, formated = self.db.get_response(query, search_width=50)
+            _, formated = self.x_encoder.answer_query(query, response)
+        else:
+            _, formated = self.db.get_response(query)
+        response = self.openai_client.chat.completions.create(
+            model="gpt-4.1-nano-2025-04-14",
+            messages=[
+                {
+                    "role": "user",
+                    "content": formated
+                }
+            ]
+        )
+        return response.choices[0].message.content
+
+    def generate_response(self, user_input, reranker: bool = True):
         self.messages = [
                 {"role": "user", "content": user_input}
         ]
@@ -74,8 +99,6 @@ class LawAssistant:
         final_response = self.client.chat(model="llama3.2", messages=self.messages)
 
         self.messages.append(final_response["message"])
-        if full_resturn:
-            return final_response["message"]["content"], function_response
         return final_response["message"]["content"]
 
 

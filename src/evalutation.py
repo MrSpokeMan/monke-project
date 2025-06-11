@@ -1,45 +1,37 @@
 import os
+import json
 import ollama
-from langchain_community.llms.ollama import Ollama
 from tqdm.auto import tqdm
 from prompts import QA_GENERATION_PROMPT, QA_CRITIQUE_GROUNDEDNESS, QA_CRITIQUE_RELEVANCE, QA_CRITIQUE_STANDALONE
 from openai import OpenAI
 from dotenv import load_dotenv
 from create_dataset import EurlexSelector
 
-
-load_dotenv()
-
 class Evaluation:
-    def __init__(self, context_list: list[dict[str, str]]):
+    def __init__(self, context_list: list[dict[str, str]] = None, openai_client: OpenAI = None):
+        load_dotenv()
         self.client = ollama.Client()
         try:
-            self.openai_client = OpenAI()
+            self.openai_client = openai_client if openai_client else OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
         except ValueError:
             print("OpenAI Client not initialized. Please check your environment variables. (Add .env file with OPENAI_API_KEY = <your_key>)")
             raise
         self.context_list = context_list if context_list else []
 
-    def __call__(self):
+    def __call__(self, save_to_file: bool = False):
         result = self._generate_questions()
         result = self._fill_dataset(result)
         # We return only questions and answers that were evaluated minimally in every categories above 3
         result = _remove_low_scores(result)
+        if save_to_file:
+            with open("../data/evaluation_results.json", "w", encoding="utf-8") as f:
+                json.dump(result, f, indent=4, ensure_ascii=False)
+            print("Results saved to evaluation_results.json")
         return result
 
     def call_llm(self, query: str):
-        # completion = self.openai_client.chat.completions.create(
-        #     model="gpt-4.1-nano-2025-04-14",
-        #     messages=[
-        #         {
-        #             "role": "user",
-        #             "content": query
-        #         }
-        #     ]
-        # )
-        # print(completion.choices[0].message.content)
-        response = self.client.chat(
-            model="llama3.2",
+        completion = self.openai_client.chat.completions.create(
+            model="gpt-4.1-nano-2025-04-14",
             messages=[
                 {
                     "role": "user",
@@ -47,7 +39,17 @@ class Evaluation:
                 }
             ]
         )
-        return response["message"]["content"]
+        return completion.choices[0].message.content
+        # response = self.client.chat(
+        #     model="llama3.2",
+        #     messages=[
+        #         {
+        #             "role": "user",
+        #             "content": query
+        #         }
+        #     ]
+        # )
+        # return response["message"]["content"]
 
     def _generate_questions(self):
         result_list = []
@@ -96,6 +98,6 @@ if __name__ == '__main__':
     selector = EurlexSelector(data="../data/scraped_data.json")
     context_list = [item[0] for item in selector.original_data if item[0].get("text")]
 
-    eval_test = Evaluation(context_list = context_list[:1])
-    eval_test()
+    eval_test = Evaluation(context_list = context_list[:100])
+    eval_test(save_to_file=True)
 
