@@ -73,3 +73,8 @@ def load_json(path: str) -> list | dict:
     with open(path, "r", encoding="utf-8") as f:
         dataset = json.load(f)
     return dataset
+
+
+def save_json(data: list | dict, path: str) -> None:
+    with open(path, "w", encoding="utf-8") as f:
+        json.dump(data, f, ensure_ascii=False, indent=2)

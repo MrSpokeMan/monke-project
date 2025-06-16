@@ -3,28 +3,38 @@ import json
 import pymilvus as pym
 
 import embedding
-from src.utils import parse_cli_args
 
 
 class VectorDB:
-    def __init__(self, source="web", link="", json_path="", save_path=""):
+    def __init__(self) -> None:
         print("Initializing VectorDB")
         self.client = pym.MilvusClient(
             uri="http://localhost:19530", token="root:Milvus"
         )
         self.collection_name = "laws"
-        self.source = source
-        self.link = link
-        self.json_path = json_path
-        self.save_path = save_path
 
-    def __call__(self):
-        self._fetch_vector()
+    def get_response(self, prompt: str, search_width: int = 10) -> tuple[list, str]:
+        emb = embedding.EmbeddingModel()
+        vector_prompt = emb.model.encode(prompt)
+
+        query_vector = self.client.search(
+            collection_name=self.collection_name,
+            data=[vector_prompt],
+            search_params={"metric_type": "COSINE"},
+            output_fields=["text", "name"],
+            limit=search_width,
+        )
+
+        return query_vector, json.dumps(query_vector)
+
+    def create_db_from_file(self, file_path: str):
         self.client.drop_collection(self.collection_name)
+        self._fetch_vector()
         self._create_collection()
         self._insert_vectors()
 
     def _fetch_vector(self):
+        # TODO: improve
         print("Fetching vector")
         emb = embedding.EmbeddingModel(
             source=self.source,
@@ -99,28 +109,3 @@ class VectorDB:
                 collection_name=self.collection_name, data=batch, progress_bar=True
             )
             print(f"Inserted batch {i // batch_size + 1}, size: {len(batch)}")
-
-    def get_response(self, prompt, search_width=10):
-        emb = embedding.EmbeddingModel()
-        vector_prompt = emb.model.encode(prompt)
-
-        query_vector = self.client.search(
-            collection_name=self.collection_name,
-            data=[vector_prompt],
-            search_params={"metric_type": "COSINE"},
-            output_fields=["text", "name"],
-            limit=search_width,
-        )
-
-        return query_vector, json.dumps(query_vector)
-
-
-if __name__ == "__main__":
-    args = parse_cli_args()
-    db = VectorDB(
-        source=args.source,
-        link=args.path_or_url if args.source == "web" else "",
-        json_path=args.path_or_url if args.source == "json" else "",
-        save_path=args.save or "",
-    )
-    db()

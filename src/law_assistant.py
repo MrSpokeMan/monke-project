@@ -14,7 +14,7 @@ class LawAssistant:
         self.client = ollama.Client()
         self.openai_client = OpenAI()
         self.db = vector_db if vector_db else VectorDB()
-        self.x_encoder = cross_encoder if cross_encoder else CrossEncoder()
+        self.cross_encoder = cross_encoder if cross_encoder else CrossEncoder()
         self.messages: list[dict[str, str]] = []
 
     def generate_response_research(self, query: str, use_reranker: bool = True):
@@ -26,7 +26,7 @@ class LawAssistant:
         """
         if use_reranker:
             response, formatted = self.db.get_response(query, search_width=50)
-            _, formatted = self.x_encoder.rerank_format_context(query, response)
+            _, formatted = self.cross_encoder.rerank_format_documents(query, response)
         else:
             _, formatted = self.db.get_response(query)
         response = self.openai_client.chat.completions.create(
@@ -86,7 +86,7 @@ class LawAssistant:
                     function_args["search_width"] = 50
                 function_response, formated = function_to_call(**function_args)
                 if reranker:
-                    function_response, formated = self.x_encoder.answer_query(
+                    function_response, formated = self.cross_encoder.answer_query(
                         user_input, function_response
                     )
                 # Add function response to the conversation
