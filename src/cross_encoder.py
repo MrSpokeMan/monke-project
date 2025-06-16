@@ -13,7 +13,7 @@ class CrossEncoder:
         )
         self.max_length = self.cross_encoder.max_length
 
-    def rerank_format_context(
+    def rerank_format_documents(
         self, query: str, answer_list: list, reordered_length: int = 10
     ) -> tuple[list[dict], str]:
         selected_docs = self.rerank_documents(query, answer_list, reordered_length)
