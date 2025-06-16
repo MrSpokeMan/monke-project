@@ -5,7 +5,7 @@ import re
 import requests
 from bs4 import BeautifulSoup
 
-from src.utils import DEFAULT_SAVE_FILE, parse_cli_args
+from utils import DEFAULT_SAVE_FILE, parse_cli_args
 from template_parser import (
     parse_template_1_first_format,
     parse_template_2_second_format,
@@ -27,14 +27,6 @@ class EurlexDownloader:
         with open(path, "w", encoding="utf-8") as f:
             json.dump(data, f, ensure_ascii=False, indent=2)
         print(f"Saved scraped data to {path}")
-
-    def load_from_json(self, path):
-        if not os.path.exists(path):
-            raise FileNotFoundError(f"No such JSON file: {path}")
-        with open(path, "r", encoding="utf-8") as f:
-            data = json.load(f)
-        print(f"Loaded data from {path}")
-        return data
 
     def get_last_page_number(self) -> int:
         response = requests.get(self.search_url)
@@ -195,14 +187,9 @@ if __name__ == "__main__":
         save_path = (
             args.save
             if args.save
-            else DEFAULT_SAVE_FILE
-            if args.save is not None
-            else None
+            else DEFAULT_SAVE_FILE if args.save is not None else None
         )
         if save_path:
             downloader.save_to_json(data, save_path)
-    elif args.source == "json":
-        downloader = EurlexDownloader("")
-        data = downloader.load_from_json(args.path_or_url)
 
     print(f"Downloaded {len(data)} documents.")

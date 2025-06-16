@@ -9,6 +9,7 @@ DEFAULT_EURLEX_URL = "https://eur-lex.europa.eu/search.html?lang=en&text=industr
 
 DEFAULT_SAVE_FILE = "./data/scraped_data.json"
 
+DEFAULT_EVAL_FILE = "./data/evaluation_results.json"
 
 def parse_cli_args():
     parser = argparse.ArgumentParser(description="EUR-Lex Legal Document Processor")

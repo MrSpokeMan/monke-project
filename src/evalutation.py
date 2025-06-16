@@ -5,14 +5,12 @@ from dotenv import load_dotenv
 from openai import OpenAI
 from tqdm.auto import tqdm
 
-from create_dataset import flatten_and_select_docs
 from prompts import (
     QA_CRITIQUE_GROUNDEDNESS,
     QA_CRITIQUE_RELEVANCE,
     QA_CRITIQUE_STANDALONE,
     QA_GENERATION_PROMPT,
 )
-from utils import load_json
 
 
 class Evaluation:
@@ -41,7 +39,7 @@ class Evaluation:
         # We return only questions and answers that were evaluated minimally in every categories above 3
         result = _remove_low_scores(result)
         if save_to_file:
-            with open("../data/evaluation_results.json", "w", encoding="utf-8") as f:
+            with open("./data/evaluation_results.json", "w", encoding="utf-8") as f:
                 json.dump(result, f, indent=4, ensure_ascii=False)
             print("Results saved to evaluation_results.json")
         return result
@@ -118,10 +116,3 @@ def _remove_low_scores(outputs):
             ):
                 filtered_outputs.append(output)
     return filtered_outputs
-
-
-if __name__ == "__main__":
-    data = load_json("../data/scraped_data.json")
-    selected_docs = flatten_and_select_docs(data, selection_probability=0.01)
-    eval_test = Evaluation(context_list=selected_docs)
-    eval_test(save_to_file=True)

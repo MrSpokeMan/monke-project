@@ -2,20 +2,21 @@ import json
 
 import pymilvus as pym
 
-import embedding
+from embedding import EmbeddingModel
+from utils import load_json
 
 
 class VectorDB:
-    def __init__(self) -> None:
+    def __init__(self, embedding_model: EmbeddingModel) -> None:
         print("Initializing VectorDB")
         self.client = pym.MilvusClient(
             uri="http://localhost:19530", token="root:Milvus"
         )
         self.collection_name = "laws"
+        self.embedding_model = embedding_model
 
     def get_response(self, prompt: str, search_width: int = 10) -> tuple[list, str]:
-        emb = embedding.EmbeddingModel()
-        vector_prompt = emb.model.encode(prompt)
+        vector_prompt = self.embedding_model.model.encode(prompt)
 
         query_vector = self.client.search(
             collection_name=self.collection_name,
@@ -27,28 +28,17 @@ class VectorDB:
 
         return query_vector, json.dumps(query_vector)
 
-    def create_db_from_file(self, file_path: str):
+    def populate_db_from_json_file(self, file_path: str):
+        print("Dropping collection")
         self.client.drop_collection(self.collection_name)
-        self._fetch_vector()
-        self._create_collection()
-        self._insert_vectors()
+        print("Calculating embeddings")
+        documents = load_json(file_path)
+        docs_with_embeddings = self.embedding_model(documents)
+        vector_size = docs_with_embeddings[0][0]["vector"].shape[0]
+        self.create_collection(vector_size)
+        self.insert_vectors(docs_with_embeddings)
 
-    def _fetch_vector(self):
-        # TODO: improve
-        print("Fetching vector")
-        emb = embedding.EmbeddingModel(
-            source=self.source,
-            path_or_url=(self.json_path if self.source == "json" else self.link),
-            save_json_path=self.save_path,
-            download_data=True,
-        )
-        emb.get_embedding()
-        self.laws = emb.vector_laws
-        self.vector_size = self.laws[0][0]["vector"].shape[0]
-        print("Vector size:", self.vector_size)
-        print("Vector fetched")
-
-    def _create_collection(self):
+    def create_collection(self, vector_size: int):
         if not self.client.has_collection(self.collection_name):
             print("Creating collection")
             collection_schema = pym.CollectionSchema(
@@ -62,7 +52,7 @@ class VectorDB:
                     pym.FieldSchema(
                         name="vector",
                         dtype=pym.DataType.FLOAT_VECTOR,
-                        dim=self.vector_size,
+                        dim=vector_size,
                     ),
                     pym.FieldSchema(
                         name="text", dtype=pym.DataType.VARCHAR, max_length=int(1e4)
@@ -80,7 +70,7 @@ class VectorDB:
             )
             self.client.create_collection(
                 collection_name=self.collection_name,
-                dimension=self.vector_size,
+                dimension=vector_size,
                 schema=collection_schema,
                 index_params=index_params,
             )
@@ -88,10 +78,15 @@ class VectorDB:
         else:
             print("Collection already exists")
 
-    def _insert_vectors(self, batch_size: int = 500):
+    def collection_exists(self) -> bool:
+        return self.client.has_collection(self.collection_name)
+
+    def insert_vectors(
+        self, docs_with_embeddings: list[list[dict[str, str]]], batch_size: int = 500
+    ):
         data = []
         id = 0
-        for law in self.laws:
+        for law in docs_with_embeddings:
             for section in law:
                 data.append(
                     {

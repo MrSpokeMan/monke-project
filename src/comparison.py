@@ -93,11 +93,14 @@ class RAGComparison:
 
 class RetrievalComparison:
     def __init__(
-        self, vector_db: VectorDB, dataset_path: str = "./data/evaluation_results.json"
+        self,
+        vector_db: VectorDB,
+        cross_encoder: CrossEncoder,
+        dataset: list[dict[str, str]],
     ):
         self.vector_db = vector_db
-        self.x_encoder = CrossEncoder()
-        self.dataset = load_json(dataset_path)
+        self.cross_encoder = cross_encoder
+        self.dataset = dataset
 
     def _retrieve_documents(
         self, query: str, use_reranker: bool = False, top_k: int = 10
@@ -117,7 +120,7 @@ class RetrievalComparison:
         retrieved_docs, _ = self.vector_db.get_response(
             query, search_width=top_k * multiplier
         )
-        return self.x_encoder.rerank_documents(
+        return self.cross_encoder.rerank_documents(
             query, retrieved_docs, reordered_length=top_k
         )
 
@@ -173,18 +176,3 @@ class RetrievalComparison:
                 "with_reranker": time_with / total_items,
             },
         }
-
-
-if __name__ == "__main__":
-    print("Processing data...")
-    vector_db = VectorDB(source="json", json_path="./data/scraped_data.json")
-    # vector_db()
-    print("VectorDB initialized")
-
-    # comparison = Comparison(vector_db)
-    # comparison.evaluate_dataset()
-    # comparison.calculate_accuracy()
-
-    retrieval_comparison = RetrievalComparison(vector_db)
-    result = retrieval_comparison()
-    print(result)
