@@ -1,18 +1,18 @@
 import json
 import os
 
-import ollama
 from dotenv import load_dotenv
 from openai import OpenAI
 from tqdm.auto import tqdm
 
-from create_dataset import EurlexSelector
+from create_dataset import flatten_and_select_docs
 from prompts import (
     QA_CRITIQUE_GROUNDEDNESS,
     QA_CRITIQUE_RELEVANCE,
     QA_CRITIQUE_STANDALONE,
     QA_GENERATION_PROMPT,
 )
+from utils import load_json
 
 
 class Evaluation:
@@ -22,7 +22,6 @@ class Evaluation:
         openai_client: OpenAI | None = None,
     ):
         load_dotenv()
-        self.client = ollama.Client()
         try:
             self.openai_client = (
                 openai_client
@@ -53,16 +52,6 @@ class Evaluation:
             messages=[{"role": "user", "content": query}],
         )
         return completion.choices[0].message.content
-        # response = self.client.chat(
-        #     model="llama3.2",
-        #     messages=[
-        #         {
-        #             "role": "user",
-        #             "content": query
-        #         }
-        #     ]
-        # )
-        # return response["message"]["content"]
 
     def _generate_questions(self):
         result_list = []
@@ -132,8 +121,7 @@ def _remove_low_scores(outputs):
 
 
 if __name__ == "__main__":
-    selector = EurlexSelector(data="../data/scraped_data.json")
-    context_list = [item for item in selector.original_data if item.get("text")]
-
-    eval_test = Evaluation(context_list=context_list[:100])
+    data = load_json("../data/scraped_data.json")
+    selected_docs = flatten_and_select_docs(data, selection_probability=0.01)
+    eval_test = Evaluation(context_list=selected_docs)
     eval_test(save_to_file=True)
