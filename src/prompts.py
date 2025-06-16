@@ -12,7 +12,8 @@ Answer: (your answer to the factoid question)
 
 Now here is the context.
 
-Context: {context}\n
+Context: {context}
+
 Output:::
 """
 
@@ -31,8 +32,10 @@ You MUST provide values for 'Evaluation:' and 'Total rating:' in your answer.
 
 Now here are the question and context.
 
-Question: {question}\n
-Context: {context}\n
+Question: {question}
+
+Context: {context}
+
 Answer:::
 """
 
@@ -60,7 +63,8 @@ You MUST provide values for 'Evaluation:' and 'Total rating:' in your answer.
 
 Now here is the question.
 
-Question: {question}\n
+Question: {question}
+
 Answer:::
 """
 
@@ -86,7 +90,8 @@ You MUST provide values for 'Evaluation:' and 'Total rating:' in your answer.
 
 Now here is the question.
 
-Question: {question}\n
+Question: {question}
+
 Answer:::
 """
 
