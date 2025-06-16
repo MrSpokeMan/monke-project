@@ -20,9 +20,7 @@ class VectorDB:
 
     def __call__(self):
         self._fetch_vector()
-        self.client.drop_collection(
-            self.collection_name
-        )  # Uncomment to drop the collection, if needed
+        self.client.drop_collection(self.collection_name)
         self._create_collection()
         self._insert_vectors()
 
@@ -43,7 +41,6 @@ class VectorDB:
     def _create_collection(self):
         if not self.client.has_collection(self.collection_name):
             print("Creating collection")
-            # define collection schema
             collection_schema = pym.CollectionSchema(
                 fields=[
                     pym.FieldSchema(
@@ -105,7 +102,7 @@ class VectorDB:
 
     def get_response(self, prompt, search_width=10):
         emb = embedding.EmbeddingModel()
-        vector_prompt = emb.model.encode(prompt)  # ['dense_vecs'].tolist()
+        vector_prompt = emb.model.encode(prompt)
 
         query_vector = self.client.search(
             collection_name=self.collection_name,
@@ -127,4 +124,3 @@ if __name__ == "__main__":
         save_path=args.save or "",
     )
     db()
-    # print(len(resp['entity']['vector']))

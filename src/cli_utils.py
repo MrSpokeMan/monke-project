@@ -29,7 +29,6 @@ def parse_cli_args():
 
     args = parser.parse_args()
 
-    # Assign defaults if path_or_url is missing
     if args.source == "web" and not args.path_or_url:
         args.path_or_url = DEFAULT_EURLEX_URL
     elif args.source == "json" and not args.path_or_url:

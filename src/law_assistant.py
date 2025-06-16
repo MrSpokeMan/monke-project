@@ -14,7 +14,7 @@ class LawAssistant:
         self.client = ollama.Client()
         self.openai_client = OpenAI()
         self.db = vector_db if vector_db else VectorDB()
-        self.x_encoder = cross_encoder if cross_encoder else CrossEncoder(self.db)
+        self.x_encoder = cross_encoder if cross_encoder else CrossEncoder()
         self.messages: list[dict[str, str]] = []
 
     def generate_response_research(self, query: str, use_reranker: bool = True):
@@ -25,23 +25,15 @@ class LawAssistant:
         :return: A formatted response string.
         """
         if use_reranker:
-            response, formated = self.db.get_response(query, search_width=50)
-            _, formated = self.x_encoder.answer_query(query, response)
+            response, formatted = self.db.get_response(query, search_width=50)
+            _, formatted = self.x_encoder.rerank_format_context(query, response)
         else:
-            _, formated = self.db.get_response(query)
+            _, formatted = self.db.get_response(query)
         response = self.openai_client.chat.completions.create(
             model="gpt-4.1-nano-2025-04-14",
-            messages=[{"role": "user", "content": formated}],
+            messages=[{"role": "user", "content": formatted}],
         )
         return response.choices[0].message.content
-
-    def retrieve_document(self, query: str, reranker: bool = True):
-        if reranker:
-            response, _ = self.db.get_response(query, search_width=50)
-            response, _ = self.x_encoder.answer_query(query, response)
-        else:
-            response, _ = self.db.get_response(query)
-        return response
 
     def generate_response(self, user_input, reranker: bool = True):
         self.messages = [{"role": "user", "content": user_input}]
