@@ -1,10 +1,9 @@
-import argparse
 import json
 import random
 from typing import Dict, List, Optional, Union
 
 import download
-from cli_utils import DEFAULT_EURLEX_URL
+from src.utils import parse_cli_args
 
 
 class EurlexSelector:
@@ -58,31 +57,8 @@ class EurlexSelector:
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(
-        description="Filter Eurlex data based on selection probability."
-    )
-    parser.add_argument("source", choices=["web", "json"], help="Data source")
-    parser.add_argument(
-        "path_or_url",
-        nargs="?",
-        default=DEFAULT_EURLEX_URL,
-        help="URL (for web) or path to JSON file (for json)",
-    )
-    parser.add_argument(
-        "--save",
-        nargs="?",
-        const="filtered_data.json",
-        help="Path to save filtered JSON",
-    )
-    parser.add_argument(
-        "--probability",
-        type=float,
-        default=0.05,
-        help="Selection probability (default: 0.05)",
-    )
-    args = parser.parse_args()
+    args = parse_cli_args()
 
-    # Load data
     if args.source == "web":
         downloader = download.EurlexDownloader(args.path_or_url)
         data = downloader()
@@ -90,7 +66,6 @@ if __name__ == "__main__":
         downloader = download.EurlexDownloader("")
         data = downloader.load_from_json(args.path_or_url)
 
-    # Run filtering
     selector = EurlexSelector(data, selection_probability=args.probability)
     selected = selector(args.save)
     print(f"Selected {len(selected)} entries out of {sum(len(x) for x in data)}.")

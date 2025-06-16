@@ -1,8 +1,9 @@
-from sentence_transformers import CrossEncoder as SentenceTransformersCrossEncoder
-from langchain_community.document_transformers import LongContextReorder
 import json
 
-from utils import truncate, get_device
+from langchain_community.document_transformers import LongContextReorder
+from sentence_transformers import CrossEncoder as SentenceTransformersCrossEncoder
+
+from utils import get_device, truncate
 
 
 class CrossEncoder:

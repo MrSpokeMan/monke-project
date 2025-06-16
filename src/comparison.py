@@ -1,4 +1,3 @@
-import json
 import time
 
 from tqdm import tqdm
@@ -6,8 +5,8 @@ from tqdm import tqdm
 from cross_encoder import CrossEncoder
 from law_assistant import LawAssistant
 from prompts import EVALUATION_PROMPT
-from vector_db import VectorDB
 from utils import load_json
+from vector_db import VectorDB
 
 
 class RAGComparison:
@@ -39,7 +38,9 @@ class RAGComparison:
         return {
             "bi_encoder_assistant_response": response["bi_encoder_assistant_response"],
             "bi_encoder_latency": response["bi_encoder_latency"],
-            "cross_encoder_assistant_response": response["cross_encoder_assistant_response"],
+            "cross_encoder_assistant_response": response[
+                "cross_encoder_assistant_response"
+            ],
         }
 
     def evaluate_dataset(self):
@@ -141,7 +142,7 @@ class RetrievalComparison:
         self, use_reranker: bool, top_k: int = 10
     ) -> tuple[int, float]:
         correct_count = 0
-        total_time = 0
+        total_time = 0.0
         for item in self.dataset:
             start_time = time.time()
             if self._check_retrieval_accuracy(

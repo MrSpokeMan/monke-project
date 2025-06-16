@@ -3,7 +3,7 @@ import json
 import pymilvus as pym
 
 import embedding
-from cli_utils import parse_cli_args
+from src.utils import parse_cli_args
 
 
 class VectorDB:
@@ -33,8 +33,8 @@ class VectorDB:
             download_data=True,
         )
         emb.get_embedding()
-        self.ustawy = emb.vector_ustaw
-        self.vector_size = self.ustawy[0][0]["vector"].shape[0]
+        self.laws = emb.vector_laws
+        self.vector_size = self.laws[0][0]["vector"].shape[0]
         print("Vector size:", self.vector_size)
         print("Vector fetched")
 
@@ -61,7 +61,7 @@ class VectorDB:
                         name="name", dtype=pym.DataType.VARCHAR, max_length=int(3e3)
                     ),
                 ],
-                description="ustawy",
+                description="laws",
             )
             index_params = self.client.prepare_index_params()
             index_params.add_index(field_name="id", index_type="AUTOINDEX")
@@ -81,14 +81,14 @@ class VectorDB:
     def _insert_vectors(self, batch_size: int = 500):
         data = []
         id = 0
-        for ustawa in self.ustawy:
-            for punkt in ustawa:
+        for law in self.laws:
+            for section in law:
                 data.append(
                     {
                         "id": id,
-                        "vector": punkt["vector"].tolist(),
-                        "text": punkt["text"],
-                        "name": punkt["name"],
+                        "vector": section["vector"].tolist(),
+                        "text": section["text"],
+                        "name": section["name"],
                     }
                 )
                 id += 1

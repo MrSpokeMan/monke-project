@@ -5,7 +5,7 @@ import re
 import requests
 from bs4 import BeautifulSoup
 
-from cli_utils import DEFAULT_EURLEX_URL, DEFAULT_SAVE_FILE, parse_cli_args
+from src.utils import DEFAULT_SAVE_FILE, parse_cli_args
 from template_parser import (
     parse_template_1_first_format,
     parse_template_2_second_format,
@@ -57,19 +57,19 @@ class EurlexDownloader:
             response = requests.get(self.search_url + f"&page={page + 1}")
             print(f"Fetching: {self.search_url}&page={page + 1}")
             soup_response = BeautifulSoup(response.text, "html.parser")
-            ustawy = soup_response.find_all("div", class_="SearchResult")
+            laws = soup_response.find_all("div", class_="SearchResult")
 
-            ustawy_in_force = [
+            laws_in_force = [
                 u
-                for u in ustawy
+                for u in laws
                 if any(
                     p.get_text(strip=True) == "In force"
                     for p in u.find_all("p", class_="forceIndicator")
                 )
             ]
 
-            for ustawa in ustawy_in_force:
-                link = ustawa.find_all("a", class_="piwik_download")
+            for law in laws_in_force:
+                link = law.find_all("a", class_="piwik_download")
                 if len(link) < 2 or "HTML" not in link[1].get("href", ""):
                     continue
 
@@ -188,12 +188,6 @@ class EurlexDownloader:
 
 if __name__ == "__main__":
     args = parse_cli_args()
-
-    # Assign default path if missing
-    if args.source == "json" and not args.path_or_url:
-        args.path_or_url = DEFAULT_SAVE_FILE
-    elif args.source == "web" and not args.path_or_url:
-        args.path_or_url = DEFAULT_EURLEX_URL
 
     if args.source == "web":
         downloader = EurlexDownloader(args.path_or_url)

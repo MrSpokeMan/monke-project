@@ -1,11 +1,10 @@
 from typing import Literal
 
-import torch
 from sentence_transformers import SentenceTransformer
 from tqdm import tqdm
 
 import download as download
-from cli_utils import DEFAULT_EURLEX_URL, parse_cli_args
+from src.utils import DEFAULT_EURLEX_URL, parse_cli_args
 from utils import get_device
 
 
@@ -18,7 +17,7 @@ class EmbeddingModel:
         download_data: bool = False,
         model_name: str = "sentence-transformers/all-MiniLM-L6-v2",
     ):
-        self.vector_documents: list[list[dict[str, str]]] = []
+        self.vector_laws: list[list[dict[str, str]]] = []
         self.device = get_device()
         self.model = SentenceTransformer(model_name, device=self.device)
 
@@ -44,17 +43,11 @@ class EmbeddingModel:
                 emb = self.model.encode(text)
                 point["vector"] = emb
                 points.append(point)
-            self.vector_documents.append(points)
+            self.vector_laws.append(points)
 
 
 if __name__ == "__main__":
-    print("CUDA available:", torch.cuda.is_available())
-    print("Torch version:", torch.__version__)
-    if torch.cuda.is_available():
-        print("GPU name:", torch.cuda.get_device_name(0))
-
     args = parse_cli_args()
-
     model = EmbeddingModel(
         source=args.source, path_or_url=args.path_or_url, save_json_path=args.save or ""
     )
