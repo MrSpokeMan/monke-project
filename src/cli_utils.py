@@ -1,8 +1,6 @@
 import argparse
 
-DEFAULT_EURLEX_URL = (
-    "https://eur-lex.europa.eu/search.html?lang=en&text=industry&qid=1742919459451&type=quick&DTS_SUBDOM=LEGISLATION&scope=EURLEX&FM_CODED=REG"
-)
+DEFAULT_EURLEX_URL = "https://eur-lex.europa.eu/search.html?lang=en&text=industry&qid=1742919459451&type=quick&DTS_SUBDOM=LEGISLATION&scope=EURLEX&FM_CODED=REG"
 
 DEFAULT_SAVE_FILE = "./data/scraped_data.json"
 
@@ -13,20 +11,20 @@ def parse_cli_args():
     parser.add_argument(
         "source",
         choices=["web", "json"],
-        help="Choose 'web' to scrape from EUR-Lex or 'json' to load from a saved file."
+        help="Choose 'web' to scrape from EUR-Lex or 'json' to load from a saved file.",
     )
 
     parser.add_argument(
         "path_or_url",
         nargs="?",
-        help="If 'web', optional URL (defaults to EUR-Lex). If 'json', optional path to JSON file (defaults to saved file)."
+        help="If 'web', optional URL (defaults to EUR-Lex). If 'json', optional path to JSON file (defaults to saved file).",
     )
 
     parser.add_argument(
         "--save",
         nargs="?",
         const=DEFAULT_SAVE_FILE,
-        help=f"If source is 'web', save scraped data (default: {DEFAULT_SAVE_FILE})"
+        help=f"If source is 'web', save scraped data (default: {DEFAULT_SAVE_FILE})",
     )
 
     args = parser.parse_args()

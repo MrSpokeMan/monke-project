@@ -115,4 +115,3 @@ Score 4: The response is mostly correct, accurate, and factual.
 Score 5: The response is completely correct, accurate, and factual.
 
 ###Feedback:"""
-
