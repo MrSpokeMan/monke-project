@@ -18,6 +18,8 @@ async def main():
         downloader = EurlexDownloader(DEFAULT_EURLEX_URL)
         data = await downloader()
         downloader.save_to_json(data, DEFAULT_SAVE_FILE)
+    else:
+        data = load_json(DEFAULT_SAVE_FILE)
     end_time = time.time()
     print(f"Downloaded data in {end_time - start_time} seconds")
 
@@ -34,7 +36,7 @@ async def main():
     if not os.path.exists(DEFAULT_EVAL_FILE):
         selected_docs = flatten_and_select_docs(data, selection_probability=0.01)
         eval_test = Evaluation(context_list=selected_docs)
-        eval_test(save_to_file=True)
+        await eval_test(save_to_file=True)
 
     # 4. Load eval dataset
     eval_dataset = load_json(DEFAULT_EVAL_FILE)
