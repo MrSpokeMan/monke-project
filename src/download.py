@@ -44,27 +44,30 @@ class EurlexDownloader:
                     return int(match.group(1))
             return 1
 
-    async def download_eurlex_page(
-        self, start_page: int = 0, end_page: int = 100
-    ) -> None:
+    async def download_eurlex_page(self) -> None:
         async with aiohttp.ClientSession() as session:
+            start_page = 0
             end_page = await self.get_last_page_number(session)
             logger.info(f"Total pages to download: {end_page - start_page}")
 
-            tasks = []
+            batch_size = 50
+            all_tasks = []
             for page in range(start_page, end_page):
                 page_url = f"{self.search_url}&page={page + 1}"
                 task = self.download_single_page(session, page_url, page + 1)
-                tasks.append(task)
+                all_tasks.append(task)
 
-            logger.info(f"Starting parallel download of {len(tasks)} pages...")
-            page_results = await asyncio.gather(*tasks, return_exceptions=True)
+            # Process tasks in batches
+            for i in range(0, len(all_tasks), batch_size):
+                batch = all_tasks[i : i + batch_size]
+                logger.info(f"Processing batch {i // batch_size + 1}")
+                batch_results = await asyncio.gather(*batch, return_exceptions=True)
 
-            for i, result in enumerate(page_results):
-                if isinstance(result, Exception):
-                    logger.error(f"Error downloading page {i + 1}: {result}")
-                elif result:
-                    self.all_documents.extend(result)  # type: ignore[arg-type]
+                for j, result in enumerate(batch_results):
+                    if isinstance(result, Exception):
+                        logger.error(f"Error downloading page {i + j + 1}: {result}")
+                    elif result:
+                        self.all_documents.extend(result)  # type: ignore[arg-type]
 
     async def download_single_page(
         self, session: aiohttp.ClientSession, page_url: str, page_num: int
