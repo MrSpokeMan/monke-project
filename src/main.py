@@ -1,17 +1,36 @@
 import os
+import random
 import time
 
-from comparison import RetrievalComparison
-from create_dataset import flatten_and_select_docs
+from comparison import RAGComparison
 from cross_encoder import CrossEncoder
 from download import EurlexDownloader
 from embedding import EmbeddingModel
 from evalutation import Evaluation
 from utils import DEFAULT_EURLEX_URL, DEFAULT_EVAL_FILE, DEFAULT_SAVE_FILE, load_json
 from vector_db import VectorDB
+from dotenv import load_dotenv
+from openai import AsyncOpenAI
+
+
+def flatten_and_select_docs(
+    data: list[list[dict[str, str]]],
+    selection_probability: float = 1.0,
+) -> list[dict[str, str]]:
+    flattened = [item for sublist in data for item in sublist]
+    return [
+        item
+        for item in flattened
+        if random.random() < selection_probability
+        if item.get("text")
+    ]
 
 
 async def main():
+    # 0. Load environment variables
+    load_dotenv()
+    openai_client = AsyncOpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+
     # 1. Download data from EUR-Lex and save it to a file
     start_time = time.time()
     if not os.path.exists(DEFAULT_SAVE_FILE):
@@ -35,7 +54,7 @@ async def main():
     # 3. Generate questions and answers
     if not os.path.exists(DEFAULT_EVAL_FILE):
         selected_docs = flatten_and_select_docs(data, selection_probability=0.01)
-        eval_test = Evaluation(context_list=selected_docs)
+        eval_test = Evaluation(openai_client=openai_client, context_list=selected_docs)
         await eval_test(save_to_file=True)
 
     # 4. Load eval dataset
@@ -45,13 +64,22 @@ async def main():
     cross_encoder = CrossEncoder()
 
     # 6. Run Retrieval Comparison
-    retrieval_comparison = RetrievalComparison(
+    # retrieval_comparison = RetrievalComparison(
+    #     dataset=eval_dataset,
+    #     cross_encoder=cross_encoder,
+    #     vector_db=vector_db,
+    # )
+
+    # result = retrieval_comparison()
+    # print(result)
+
+    # 7. Run RAG evaluation
+    rag_evaluation = RAGComparison(
+        openai_client=openai_client,
         dataset=eval_dataset,
-        cross_encoder=cross_encoder,
         vector_db=vector_db,
     )
-
-    result = retrieval_comparison()
+    result = await rag_evaluation()
     print(result)
 
 

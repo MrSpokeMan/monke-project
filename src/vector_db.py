@@ -39,7 +39,7 @@ class VectorDB:
         self.insert_vectors(docs_with_embeddings)
 
     def create_collection(self, vector_size: int):
-        if not self.client.has_collection(self.collection_name):
+        if not self.collection_exists():
             print("Creating collection")
             collection_schema = pym.CollectionSchema(
                 fields=[
@@ -91,7 +91,7 @@ class VectorDB:
                 data.append(
                     {
                         "id": id,
-                        "vector": section["vector"].tolist(),
+                        "vector": section["vector"],
                         "text": section["text"],
                         "name": section["name"],
                     }

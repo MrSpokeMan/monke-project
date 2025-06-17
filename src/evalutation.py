@@ -14,25 +14,22 @@ from prompts import (
 )
 
 
+async def call_llm(openai_client: AsyncOpenAI, query: str):
+    completion = await openai_client.chat.completions.create(
+        model="gpt-4.1-nano-2025-04-14",
+        messages=[{"role": "user", "content": query}],
+    )
+    return completion.choices[0].message.content
+
+
 class Evaluation:
     def __init__(
         self,
-        context_list: list[dict[str, str]] | None = None,
-        openai_client: AsyncOpenAI | None = None,
+        openai_client: AsyncOpenAI,
+        context_list: list[dict[str, str]],
     ):
-        load_dotenv()
-        try:
-            self.openai_client = (
-                openai_client
-                if openai_client
-                else AsyncOpenAI(api_key=os.getenv("OPENAI_API_KEY"))
-            )
-        except ValueError:
-            print(
-                "OpenAI Client not initialized. Please check your environment variables. (Add .env file with OPENAI_API_KEY = <your_key>)"
-            )
-            raise
-        self.context_list = context_list if context_list else []
+        self.openai_client = openai_client
+        self.context_list = context_list
 
     async def __call__(self, save_to_file: bool = False):
         result = await self._generate_questions()
@@ -44,19 +41,12 @@ class Evaluation:
             print("Results saved to evaluation_results.json")
         return result
 
-    async def call_llm(self, query: str):
-        completion = await self.openai_client.chat.completions.create(
-            model="gpt-4.1-nano-2025-04-14",
-            messages=[{"role": "user", "content": query}],
-        )
-        return completion.choices[0].message.content
-
     async def _generate_single_question(self, context: dict[str, str]):
         """Generate a single question-answer pair for a given context."""
         result_dict = {"name": context["name"], "context": context["text"]}
         query = QA_GENERATION_PROMPT.format(context=context["text"])
         try:
-            response = await self.call_llm(query)
+            response = await call_llm(self.openai_client, query)
             result_dict["question"] = (
                 response.split("Factoid question: ")[1].split("Answer: ")[0].strip()
             )
@@ -91,16 +81,19 @@ class Evaluation:
 
     async def _evaluate_single_output(self, output: dict):
         evaluation_tasks = {
-            "groundedness": self.call_llm(
+            "groundedness": call_llm(
+                self.openai_client,
                 QA_CRITIQUE_GROUNDEDNESS.format(
                     question=output["question"], context=output["context"]
-                )
+                ),
             ),
-            "relevance": self.call_llm(
-                QA_CRITIQUE_RELEVANCE.format(question=output["question"])
+            "relevance": call_llm(
+                self.openai_client,
+                QA_CRITIQUE_RELEVANCE.format(question=output["question"]),
             ),
-            "standalone": self.call_llm(
-                QA_CRITIQUE_STANDALONE.format(question=output["question"])
+            "standalone": call_llm(
+                self.openai_client,
+                QA_CRITIQUE_STANDALONE.format(question=output["question"]),
             ),
         }
 
@@ -117,8 +110,8 @@ class Evaluation:
                     continue
 
                 score, eval_text = (
-                    int(evaluation.split("Total rating: ")[-1].strip()),
-                    evaluation.split("Total rating: ")[-2]
+                    int(evaluation.split("Total rating: ")[-1].strip()),  # type: ignore[union-attr]
+                    evaluation.split("Total rating: ")[-2]  # type: ignore[union-attr]
                     .split("Evaluation: ")[1]
                     .strip(),
                 )
