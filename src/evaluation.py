@@ -1,8 +1,7 @@
 import asyncio
 import json
-import os
+import logging
 
-from dotenv import load_dotenv
 from openai import AsyncOpenAI
 from tqdm.auto import tqdm
 
@@ -13,10 +12,13 @@ from prompts import (
     QA_GENERATION_PROMPT,
 )
 
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
-async def call_llm(openai_client: AsyncOpenAI, query: str):
+
+async def call_llm(openai_client: AsyncOpenAI, query: str, model_name: str):
     completion = await openai_client.chat.completions.create(
-        model="gpt-4.1-nano-2025-04-14",
+        model=model_name,
         messages=[{"role": "user", "content": query}],
     )
     return completion.choices[0].message.content
@@ -26,10 +28,12 @@ class EvaluationDatasetGenerator:
     def __init__(
         self,
         openai_client: AsyncOpenAI,
+        model_name: str,
         context_list: list[dict[str, str]],
     ):
         self.openai_client = openai_client
         self.context_list = context_list
+        self.model_name = model_name
 
     async def __call__(self, file_path: str | None = None):
         result = await self._generate_questions()
@@ -44,14 +48,14 @@ class EvaluationDatasetGenerator:
         result_dict = {"name": context["name"], "context": context["text"]}
         query = QA_GENERATION_PROMPT.format(context=context["text"])
         try:
-            response = await call_llm(self.openai_client, query)
+            response = await call_llm(self.openai_client, query, self.model_name)
             result_dict["question"] = (
                 response.split("Factoid question: ")[1].split("Answer: ")[0].strip()
             )
             result_dict["answer"] = response.split("Answer: ")[1].strip()
             return result_dict
         except (IndexError, AttributeError) as e:
-            print(f"Error parsing response for context '{context['name']}': {e}")
+            logger.error(f"Error parsing response for context '{context['name']}': {e}")
             return None
 
     async def _generate_questions(self):
@@ -69,7 +73,7 @@ class EvaluationDatasetGenerator:
 
                 for result in batch_results:
                     if isinstance(result, Exception):
-                        print(f"Error in batch processing: {result}")
+                        logger.error(f"Error in batch processing: {result}")
                     elif result is not None:
                         results.append(result)
                     pbar.update(1)
@@ -83,14 +87,17 @@ class EvaluationDatasetGenerator:
                 QA_CRITIQUE_GROUNDEDNESS.format(
                     question=output["question"], context=output["context"]
                 ),
+                self.model_name,
             ),
             "relevance": call_llm(
                 self.openai_client,
                 QA_CRITIQUE_RELEVANCE.format(question=output["question"]),
+                self.model_name,
             ),
             "standalone": call_llm(
                 self.openai_client,
                 QA_CRITIQUE_STANDALONE.format(question=output["question"]),
+                self.model_name,
             ),
         }
 
@@ -98,10 +105,9 @@ class EvaluationDatasetGenerator:
             evaluations = await asyncio.gather(
                 *[task for task in evaluation_tasks.values()], return_exceptions=True
             )
-            evaluation_results = dict(zip(evaluation_tasks.keys(), evaluations))
-            for criterion, evaluation in evaluation_results.items():
+            for criterion, evaluation in zip(evaluation_tasks.keys(), evaluations):
                 if isinstance(evaluation, Exception):
-                    print(
+                    logger.error(
                         f"Error evaluating {criterion} for question '{output['question'][:50]}...': {evaluation}"
                     )
                     continue
@@ -116,14 +122,14 @@ class EvaluationDatasetGenerator:
                     {f"{criterion}_score": score, f"{criterion}_eval": eval_text}
                 )
         except Exception as e:
-            print(
+            logger.error(
                 f"Error processing evaluation for question '{output['question'][:50]}...': {e}"
             )
 
         return output
 
     async def _fill_dataset(self, outputs):
-        print("Evaluating questions...")
+        logger.info("Evaluating questions...")
         tasks = [self._evaluate_single_output(output) for output in outputs]
         results = []
         with tqdm(total=len(tasks), desc="Evaluating questions", unit="eval_q") as pbar:
@@ -135,7 +141,7 @@ class EvaluationDatasetGenerator:
                 )
                 for result in batch_results:
                     if isinstance(result, Exception):
-                        print(f"Error in evaluation batch: {result}")
+                        logger.error(f"Error in evaluation batch: {result}")
                     else:
                         results.append(result)
                     pbar.update(1)

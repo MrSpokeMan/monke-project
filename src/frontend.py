@@ -1,13 +1,11 @@
-import os
-
 import streamlit as st
-from dotenv import load_dotenv
 from openai import AsyncOpenAI
 from pymilvus import MilvusClient
 
 from cross_encoder import CrossEncoder
 from embedding import EmbeddingModel
 from law_assistant import LawAssistant
+from settings import Settings
 from vector_db import VectorDB
 
 
@@ -36,22 +34,22 @@ class LawBot:
 
 
 if __name__ == "__main__":
-    load_dotenv()
-    openai_client = AsyncOpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+    settings = Settings()
+
+    openai_client = AsyncOpenAI(api_key=settings.openai_api_key)
     embedding_model = EmbeddingModel(
-        os.getenv("EMBEDDING_MODEL"),
+        settings.embedding_model,
     )
-    milvus_client = MilvusClient(
-        uri=os.getenv("MILVUS_URI"), token=os.getenv("MILVUS_TOKEN")
-    )
+    milvus_client = MilvusClient(uri=settings.milvus_uri, token=settings.milvus_token)
     vector_db = VectorDB(embedding_model=embedding_model, milvus_client=milvus_client)
     cross_encoder = CrossEncoder(
-        os.getenv("CROSS_ENCODER_MODEL"),
+        settings.cross_encoder_model,
     )
     law_assistant = LawAssistant(
         vector_db=vector_db,
         cross_encoder=cross_encoder,
         openai_client=openai_client,
+        model_name=settings.llm_model,
     )
     law_bot = LawBot(law_assistant)
     law_bot.set_front()

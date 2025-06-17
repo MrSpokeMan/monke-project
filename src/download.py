@@ -1,5 +1,6 @@
 import asyncio
 import json
+import logging
 import re
 
 import aiohttp
@@ -11,7 +12,9 @@ from template_parser import (
     parse_template_3_third_format,
     parse_template_4_fourth_format,
 )
-from utils import DEFAULT_SAVE_FILE, parse_cli_args
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 
 class EurlexDownloader:
@@ -26,7 +29,7 @@ class EurlexDownloader:
     def save_to_json(self, data, path):
         with open(path, "w", encoding="utf-8") as f:
             json.dump(data, f, ensure_ascii=False, indent=2)
-        print(f"Saved scraped data to {path}")
+        logger.info(f"Saved scraped data to {path}")
 
     async def get_last_page_number(self, session: aiohttp.ClientSession) -> int:
         async with session.get(self.search_url) as response:
@@ -46,7 +49,7 @@ class EurlexDownloader:
     ) -> None:
         async with aiohttp.ClientSession() as session:
             end_page = await self.get_last_page_number(session)
-            print(f"Total pages to download: {end_page - start_page}")
+            logger.info(f"Total pages to download: {end_page - start_page}")
 
             tasks = []
             for page in range(start_page, end_page):
@@ -54,12 +57,12 @@ class EurlexDownloader:
                 task = self.download_single_page(session, page_url, page + 1)
                 tasks.append(task)
 
-            print(f"Starting parallel download of {len(tasks)} pages...")
+            logger.info(f"Starting parallel download of {len(tasks)} pages...")
             page_results = await asyncio.gather(*tasks, return_exceptions=True)
 
             for i, result in enumerate(page_results):
                 if isinstance(result, Exception):
-                    print(f"Error downloading page {i + 1}: {result}")
+                    logger.error(f"Error downloading page {i + 1}: {result}")
                 elif result:
                     self.all_documents.extend(result)  # type: ignore[arg-type]
 
@@ -67,7 +70,7 @@ class EurlexDownloader:
         self, session: aiohttp.ClientSession, page_url: str, page_num: int
     ) -> list[list[dict[str, str]]]:
         try:
-            print(f"Fetching page {page_num}: {page_url}")
+            logger.debug(f"Fetching page {page_num}: {page_url}")
             async with session.get(page_url) as response:
                 text = await response.text()
                 soup_response = BeautifulSoup(text, "html.parser")
@@ -100,7 +103,7 @@ class EurlexDownloader:
                     page_documents = []
                     for result in html_results:
                         if isinstance(result, Exception):
-                            print(f"Error downloading HTML content: {result}")
+                            logger.error(f"Error downloading HTML content: {result}")
                         elif result:
                             page_documents.append(result)
 
@@ -109,7 +112,7 @@ class EurlexDownloader:
                 return []
 
         except Exception as e:
-            print(f"Error downloading page {page_num}: {e}")
+            logger.error(f"Error downloading page {page_num}: {e}")
             return []
 
     async def _get_html_content(self, session: aiohttp.ClientSession, url: str):
@@ -135,29 +138,29 @@ class EurlexDownloader:
                 )
 
                 if title_div and title_parts and subdivisions:
-                    print("Using first format")
+                    logger.debug("Using first format")
                     parsed = parse_template_1_first_format(
                         soup, title_parts, subdivisions
                     )
                 elif plain_text:
-                    print("Using second format")
+                    logger.debug("Using second format")
                     parsed = parse_template_2_second_format(soup, plain_text)
                 elif doc_titles and articles:
-                    print("Using third format")
+                    logger.debug("Using third format")
                     parsed = parse_template_3_third_format(soup, doc_titles)
                 elif title_div and title_parts and group_headers and not subdivisions:
-                    print("Using fourth format")
+                    logger.debug("Using fourth format")
                     parsed = parse_template_4_fourth_format(
                         soup, title_parts, group_headers
                     )
                 else:
-                    print("Unknown document format")
+                    logger.warning("Unknown document format")
                     return []
 
                 return self._split_if_needed(parsed)
 
         except Exception as e:
-            print(f"Error getting HTML content from {url}: {e}")
+            logger.error(f"Error getting HTML content from {url}: {e}")
             return []
 
     def _split_if_needed(self, parsed_law, max_len=10000):
@@ -185,7 +188,7 @@ class EurlexDownloader:
                 result.append({"name": name, "text": text})
                 continue
 
-            print(
+            logger.debug(
                 f"Splitting section from law '{name}' (length {len(text.encode('utf-8'))} bytes)..."
             )
 
@@ -222,31 +225,8 @@ class EurlexDownloader:
         for i, entry in enumerate(result):
             byte_len = len(entry["text"].encode("utf-8"))
             if byte_len > max_len:
-                print(
+                logger.warning(
                     f"Chunk {i} too long after split: {byte_len} bytes — name: {entry['name'][:60]}..."
                 )
 
         return result
-
-
-async def main():
-    args = parse_cli_args()
-
-    if args.source == "web":
-        downloader = EurlexDownloader(args.path_or_url)
-        data = await downloader()
-        save_path = (
-            args.save
-            if args.save
-            else DEFAULT_SAVE_FILE
-            if args.save is not None
-            else None
-        )
-        if save_path:
-            downloader.save_to_json(data, save_path)
-
-        print(f"Downloaded {len(data)} documents.")
-
-
-if __name__ == "__main__":
-    asyncio.run(main())

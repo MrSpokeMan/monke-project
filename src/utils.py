@@ -10,6 +10,10 @@ DEFAULT_SAVE_FILE = "./data/scraped_data.json"
 
 DEFAULT_EVAL_FILE = "./data/evaluation_results.json"
 
+DEFAULT_RETRIEVAL_COMPARISON_FILE = "./data/retrieval_comparison.json"
+
+DEFAULT_RAG_COMPARISON_FILE = "./data/rag_comparison.json"
+
 
 def get_device() -> Literal["cuda", "mps", "cpu"]:
     if torch.cuda.is_available():

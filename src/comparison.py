@@ -1,4 +1,5 @@
 import asyncio
+import logging
 import time
 
 from openai import AsyncOpenAI
@@ -9,29 +10,38 @@ from law_assistant import LawAssistant
 from prompts import EVALUATION_PROMPT
 from vector_db import VectorDB
 
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
 
 class RAGComparison:
     def __init__(
         self,
         openai_client: AsyncOpenAI,
         vector_db: VectorDB,
+        cross_encoder: CrossEncoder,
         dataset: list[dict[str, str]],
+        model_name: str = "gpt-4.1-nano-2025-04-14",
     ):
         self.vector_db = vector_db
         self.assistant = LawAssistant(
-            vector_db=self.vector_db, openai_client=openai_client
+            vector_db=self.vector_db,
+            openai_client=openai_client,
+            cross_encoder=cross_encoder,
+            model_name=model_name,
         )
         self.dataset = dataset
         self.openai_client = openai_client
+        self.model_name = model_name
 
-    async def __call__(self) -> dict:
+    async def __call__(self, top_k: int = 10) -> dict:
         with_reranker_score, with_reranker_time = await self._evaluate_retrieval_method(
-            use_reranker=True, top_k=10
+            use_reranker=True, top_k=top_k
         )
         (
             without_reranker_score,
             without_reranker_time,
-        ) = await self._evaluate_retrieval_method(use_reranker=False, top_k=10)
+        ) = await self._evaluate_retrieval_method(use_reranker=False, top_k=top_k)
         return {
             "score": {
                 "with_reranker": with_reranker_score,
@@ -52,7 +62,7 @@ class RAGComparison:
         for item in self.dataset:
             start_time = time.time()
             response = self.assistant.generate_response(
-                item["question"], use_reranker=use_reranker
+                item["question"], use_reranker=use_reranker, top_k=top_k
             )
             responses.append(response)
             total_time += time.time() - start_time
@@ -80,14 +90,13 @@ class RAGComparison:
             response=response,
             reference_answer=reference_answer,
         )
-        eval_prompt = await call_llm(self.openai_client, eval_prompt)
+        eval_prompt = await call_llm(self.openai_client, eval_prompt, self.model_name)
         try:
             feedback, score = [item.strip() for item in eval_prompt.split("[RESULT]")]
             score = int(score)
+            return score, feedback
         except ValueError:
-            feedback = eval_prompt
-            score = 0
-        return score, feedback
+            return 0, "Error parsing evaluation result"
 
 
 class RetrievalComparison:
@@ -129,7 +138,7 @@ class RetrievalComparison:
             else:
                 return self._retrieve_without_reranker(query, top_k)
         except Exception as e:
-            print(f"Error in retrieval: {e}")
+            logger.error(f"Error in retrieval: {e}")
             return []
 
     def _retrieve_with_reranker(
@@ -149,16 +158,6 @@ class RetrievalComparison:
             for doc in retrieved_docs[0][:top_k]
         ]
 
-    def _check_retrieval_accuracy(
-        self,
-        query: str,
-        expected_context: str,
-        use_reranker: bool = False,
-        top_k: int = 5,
-    ) -> bool:
-        retrieved_docs = self._retrieve_documents(query, use_reranker, top_k)
-        return any(expected_context in doc["text"] for doc in retrieved_docs)
-
     def _evaluate_retrieval_method(
         self, use_reranker: bool, top_k: int = 10
     ) -> tuple[int, float]:
@@ -166,12 +165,11 @@ class RetrievalComparison:
         total_time = 0.0
         for item in self.dataset:
             start_time = time.time()
-            if self._check_retrieval_accuracy(
-                query=item["question"],
-                expected_context=item["context"],
-                use_reranker=use_reranker,
-                top_k=top_k,
-            ):
+            retrieved_docs = self._retrieve_documents(
+                item["question"], use_reranker, top_k
+            )
+            # Check if the expected context is in the retrieved documents:
+            if any(item["context"] in doc["text"] for doc in retrieved_docs):
                 correct_count += 1
             total_time += time.time() - start_time
         return correct_count, total_time
