@@ -4,7 +4,7 @@ import time
 from openai import AsyncOpenAI
 
 from cross_encoder import CrossEncoder
-from evalutation import call_llm
+from evaluation import call_llm
 from law_assistant import LawAssistant
 from prompts import EVALUATION_PROMPT
 from vector_db import VectorDB
@@ -18,11 +18,13 @@ class RAGComparison:
         dataset: list[dict[str, str]],
     ):
         self.vector_db = vector_db
-        self.assistant = LawAssistant(vector_db=self.vector_db)
+        self.assistant = LawAssistant(
+            vector_db=self.vector_db, openai_client=openai_client
+        )
         self.dataset = dataset
         self.openai_client = openai_client
 
-    async def __call__(self) -> list[dict[str, str]]:
+    async def __call__(self) -> dict:
         with_reranker_score, with_reranker_time = await self._evaluate_retrieval_method(
             use_reranker=True, top_k=10
         )
@@ -49,7 +51,7 @@ class RAGComparison:
         responses = []
         for item in self.dataset:
             start_time = time.time()
-            response = self.assistant.generate_response_research(
+            response = self.assistant.generate_response(
                 item["question"], use_reranker=use_reranker
             )
             responses.append(response)

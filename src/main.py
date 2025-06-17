@@ -1,16 +1,17 @@
 import os
 import random
-import time
+
+from dotenv import load_dotenv
+from openai import AsyncOpenAI
+from pymilvus import MilvusClient
 
 from comparison import RAGComparison
 from cross_encoder import CrossEncoder
 from download import EurlexDownloader
 from embedding import EmbeddingModel
-from evalutation import Evaluation
+from evaluation import EvaluationDatasetGenerator
 from utils import DEFAULT_EURLEX_URL, DEFAULT_EVAL_FILE, DEFAULT_SAVE_FILE, load_json
 from vector_db import VectorDB
-from dotenv import load_dotenv
-from openai import AsyncOpenAI
 
 
 def flatten_and_select_docs(
@@ -32,36 +33,38 @@ async def main():
     openai_client = AsyncOpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
     # 1. Download data from EUR-Lex and save it to a file
-    start_time = time.time()
     if not os.path.exists(DEFAULT_SAVE_FILE):
         downloader = EurlexDownloader(DEFAULT_EURLEX_URL)
         data = await downloader()
         downloader.save_to_json(data, DEFAULT_SAVE_FILE)
-    else:
-        data = load_json(DEFAULT_SAVE_FILE)
-    end_time = time.time()
-    print(f"Downloaded data in {end_time - start_time} seconds")
+    data = load_json(DEFAULT_SAVE_FILE)
 
     # 2. Create a vector database from the downloaded data
-    start_time = time.time()
-    embedding_model = EmbeddingModel()
-    vector_db = VectorDB(embedding_model=embedding_model)
+    embedding_model = EmbeddingModel(
+        os.getenv("EMBEDDING_MODEL_NAME"),
+    )
+    milvus_client = MilvusClient(
+        uri=os.getenv("MILVUS_URI"), token=os.getenv("MILVUS_TOKEN")
+    )
+    vector_db = VectorDB(embedding_model=embedding_model, milvus_client=milvus_client)
     if not vector_db.collection_exists():
-        vector_db.populate_db_from_json_file(DEFAULT_SAVE_FILE)
-    end_time = time.time()
-    print(f"VectorDB initialized in {end_time - start_time} seconds")
+        vector_db.create_collection_from_documents(documents=data, drop_existing=True)
 
     # 3. Generate questions and answers
     if not os.path.exists(DEFAULT_EVAL_FILE):
-        selected_docs = flatten_and_select_docs(data, selection_probability=0.01)
-        eval_test = Evaluation(openai_client=openai_client, context_list=selected_docs)
+        selected_docs = flatten_and_select_docs(data, selection_probability=0.005)
+        eval_test = EvaluationDatasetGenerator(
+            openai_client=openai_client, context_list=selected_docs
+        )
         await eval_test(save_to_file=True)
 
     # 4. Load eval dataset
     eval_dataset = load_json(DEFAULT_EVAL_FILE)
 
     # 5. Create a cross-encoder
-    cross_encoder = CrossEncoder()
+    cross_encoder = CrossEncoder(
+        os.getenv("CROSS_ENCODER_MODEL_NAME"),
+    )
 
     # 6. Run Retrieval Comparison
     # retrieval_comparison = RetrievalComparison(

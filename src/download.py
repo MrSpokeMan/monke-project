@@ -61,7 +61,7 @@ class EurlexDownloader:
                 if isinstance(result, Exception):
                     print(f"Error downloading page {i + 1}: {result}")
                 elif result:
-                    self.all_documents.extend(result)
+                    self.all_documents.extend(result)  # type: ignore[arg-type]
 
     async def download_single_page(
         self, session: aiohttp.ClientSession, page_url: str, page_num: int
@@ -104,7 +104,7 @@ class EurlexDownloader:
                         elif result:
                             page_documents.append(result)
 
-                    return page_documents
+                    return page_documents  # type: ignore[return-value]
 
                 return []
 

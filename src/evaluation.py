@@ -22,7 +22,7 @@ async def call_llm(openai_client: AsyncOpenAI, query: str):
     return completion.choices[0].message.content
 
 
-class Evaluation:
+class EvaluationDatasetGenerator:
     def __init__(
         self,
         openai_client: AsyncOpenAI,
@@ -31,18 +31,16 @@ class Evaluation:
         self.openai_client = openai_client
         self.context_list = context_list
 
-    async def __call__(self, save_to_file: bool = False):
+    async def __call__(self, file_path: str | None = None):
         result = await self._generate_questions()
         result = await self._fill_dataset(result)
         result = _remove_low_scores(result)
-        if save_to_file:
-            with open("./data/evaluation_results.json", "w", encoding="utf-8") as f:
+        if file_path:
+            with open(file_path, "w", encoding="utf-8") as f:
                 json.dump(result, f, indent=4, ensure_ascii=False)
-            print("Results saved to evaluation_results.json")
         return result
 
     async def _generate_single_question(self, context: dict[str, str]):
-        """Generate a single question-answer pair for a given context."""
         result_dict = {"name": context["name"], "context": context["text"]}
         query = QA_GENERATION_PROMPT.format(context=context["text"])
         try:
@@ -57,7 +55,6 @@ class Evaluation:
             return None
 
     async def _generate_questions(self):
-        print("Generating questions and answers...")
         tasks = [
             self._generate_single_question(context) for context in self.context_list
         ]
@@ -145,7 +142,12 @@ class Evaluation:
         return results
 
 
-def _remove_low_scores(outputs):
+def _remove_low_scores(
+    outputs: list[dict],
+    min_groundedness_score: int = 3,
+    min_relevance_score: int = 3,
+    min_standalone_score: int = 3,
+):
     filtered_outputs = []
     for output in outputs:
         if (
@@ -154,9 +156,9 @@ def _remove_low_scores(outputs):
             and output.get("standalone_score")
         ):
             if (
-                output["groundedness_score"] >= 3
-                and output["relevance_score"] >= 3
-                and output["standalone_score"] >= 3
+                output["groundedness_score"] >= min_groundedness_score
+                and output["relevance_score"] >= min_relevance_score
+                and output["standalone_score"] >= min_standalone_score
             ):
                 filtered_outputs.append(output)
     return filtered_outputs
