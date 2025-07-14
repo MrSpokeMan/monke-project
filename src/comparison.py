@@ -3,7 +3,7 @@ import logging
 import time
 
 from openai import AsyncOpenAI
-
+import numpy as np
 from cross_encoder import CrossEncoder
 from evaluation import call_llm
 from law_assistant import LawAssistant
@@ -12,6 +12,107 @@ from vector_db import VectorDB
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+
+class AdapterRetrievalComparison:
+    def __init__(
+        self,
+        vector_db: VectorDB,
+        dataset: list[dict[str, str]],
+    ):
+        self.vector_db = vector_db
+        self.dataset = dataset
+
+    def __call__(self, top_k: int = 10) -> dict:
+        total_items = len(self.dataset)
+        correct_without, time_without = self._evaluate_retrieval_method(
+            use_adapter=False, top_k=top_k
+        )
+        correct_with, time_with = self._evaluate_retrieval_method(
+            use_adapter=True, top_k=top_k
+        )
+        return {
+            "accuracy": {
+                "without": correct_without / total_items,
+                "with_adapter": correct_with / total_items,
+            },
+            "avg_time": {
+                "without": time_without / total_items,
+                "with_adapter": time_with / total_items,
+            },
+        }
+
+    def _retrieve_documents(
+        self, query: str, use_adapter: bool = False, top_k: int = 10
+    ) -> list:
+        try:
+            if use_adapter:
+                return self._retrieve_with_adapter(query, top_k)
+            else:
+                return self._retrieve_without(query, top_k)
+        except Exception as e:
+            logger.error(f"Error in retrieval: {e}")
+            return []
+
+    def _retrieve_with_adapter(self, query: str, top_k: int) -> list:
+        retrieved_docs = self.vector_db.get_adapter_response(query, search_width=top_k)
+        return [
+            {"name": doc["entity"]["name"], "text": doc["entity"]["text"]}
+            for doc in retrieved_docs[0][:top_k]
+        ]
+
+    def _retrieve_without(self, query: str, top_k: int) -> list:
+        retrieved_docs= self.vector_db.get_response(query, search_width=top_k)
+        return [
+            {"name": doc["entity"]["name"], "text": doc["entity"]["text"]}
+            for doc in retrieved_docs[0][:top_k]
+        ]
+
+    def _evaluate_retrieval_method(
+        self, use_adapter: bool, top_k: int = 10
+    ) -> tuple[int, float]:
+        correct_count = 0
+        total_time = 0.0
+        for item in self.dataset:
+            start_time = time.time()
+            retrieved_docs = self._retrieve_documents(
+                item["question"], use_adapter, top_k
+            )
+            total_time += time.time() - start_time
+            # Check if the expected context is in the retrieved documents:
+            if any(item["context"] in doc["text"] for doc in retrieved_docs):
+                correct_count += 1
+        return correct_count, total_time
+    
+    def _evaluate_retrieval_method_complex(self, use_adapter: bool, top_k: int = 10):
+        mrr_sum = 0.0
+        ndcg_sum = 0.0
+        hits = 0
+        total_time = 0.0
+        for item in self.dataset:
+            start_time = time.time()
+
+            retrieved_docs = self._retrieve_documents(
+                item["question"], use_adapter, top_k
+            )
+            total_time += time.time() - start_time
+            # find rank of correct doc
+            rank = next((i+1 for i, d in enumerate(retrieved_docs)
+                        if item["context"] in d["text"]), None)
+
+            if rank:                            # if correct doc found
+                hits += 1                       
+                mrr_sum  += 1 / rank            
+                ndcg_sum += 1 / np.log2(rank+1)
+
+        n = len(self.dataset)
+        metrics = {
+            "Recall@k":   hits / n,
+            "MRR":        mrr_sum / n,
+            "NDCG@k":     ndcg_sum / n,
+            "total_time": total_time
+        }
+        return metrics
 
 
 class RAGComparison:
@@ -171,5 +272,5 @@ class RetrievalComparison:
             # Check if the expected context is in the retrieved documents:
             if any(item["context"] in doc["text"] for doc in retrieved_docs):
                 correct_count += 1
-            total_time += time.time() - start_time
+            total_timxe += time.time() - start_time
         return correct_count, total_time

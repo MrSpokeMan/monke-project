@@ -63,7 +63,7 @@ async def main():
 
     # 3. Generate questions and answers
     if not os.path.exists(DEFAULT_EVAL_FILE):
-        selected_docs = flatten_and_select_docs(data, selection_probability=0.005)
+        selected_docs = flatten_and_select_docs(data, selection_probability=1)#0.005)
         eval_test = EvaluationDatasetGenerator(
             openai_client=openai_client,
             context_list=selected_docs,

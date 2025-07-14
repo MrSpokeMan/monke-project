@@ -1,21 +1,22 @@
 import json
 import logging
-
 import pymilvus as pym
-
+from utils import load_adapter, get_device
 from embedding import EmbeddingModel
-
+import torch
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 
 class VectorDB:
     def __init__(
-        self, embedding_model: EmbeddingModel, milvus_client: pym.MilvusClient
+        self, embedding_model: EmbeddingModel, milvus_client: pym.MilvusClient, adapter_path:str = None
     ) -> None:
         self.milvus_client = milvus_client
         self.embedding_model = embedding_model
         self.collection_name = "laws"
+        self.adapter = load_adapter(adapter_path, self.embedding_model.model)
+        self.adapter_device = get_device()
 
     def get_response(self, prompt: str, search_width: int = 10) -> tuple[list, str]:
         try:
@@ -29,9 +30,28 @@ class VectorDB:
                 limit=search_width,
             )
 
-            return query_vector, json.dumps(query_vector)
+            return query_vector#, json.dumps(query_vector)
         except Exception as e:
             logger.error(f"Error during vector search: {e}")
+            raise
+
+    def get_adapter_response(self, prompt: str, search_width: int = 10) -> tuple[list, str]:
+        try:
+            vector_prompt = self.embedding_model.model.encode(prompt)
+            vector_prompt = torch.from_numpy(vector_prompt).to(self.adapter_device).float()
+            vector_prompt = self.adapter(vector_prompt).cpu().detach().numpy()
+
+            query_vector = self.milvus_client.search(
+                collection_name=self.collection_name,
+                data=[vector_prompt],
+                search_params={"metric_type": "COSINE"},
+                output_fields=["text", "name"],
+                limit=search_width,
+            )
+
+            return query_vector#, json.dumps(query_vector)
+        except Exception as e:
+            logger.error(f"Error during adapter vector search: {e}")
             raise
 
     def create_collection_from_documents(

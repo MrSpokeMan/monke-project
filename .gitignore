@@ -126,6 +126,11 @@ celerybeat.pid
 
 # SageMath parsed files
 *.sage.py
+## venv
+monke/
+data/adapters/lin2_train
+data/adapters/lin_train
+data/adapters/lin_all
 
 # Environments
 .env
