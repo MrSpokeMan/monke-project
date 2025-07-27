@@ -27,7 +27,7 @@ class CrossEncoder:
             {"name": item["entity"]["name"], "text": item["entity"]["text"]}
             for item in answer_list[0]
         ]
-        pairs = [(query, truncate(doc["text"], self.max_length)) for doc in docs]
+        pairs = [(query, truncate(doc["text"], self.max_length // 2)) for doc in docs]
         scores = self.cross_encoder.predict(pairs)
         docs_with_scores = sorted(zip(docs, scores), key=lambda x: x[1], reverse=True)
         return [doc for doc, _ in docs_with_scores[:reordered_length]]

@@ -1,6 +1,7 @@
 import logging
 import os
 import random
+import time
 
 from openai import AsyncOpenAI
 from pymilvus import MilvusClient
@@ -80,18 +81,22 @@ async def main():
     )
 
     # 6. Run Retrieval Comparison
-    import time
-
     start_time = time.time()
-    retrieval_comparison = RetrievalComparison(
-        dataset=eval_dataset,
-        cross_encoder=cross_encoder,
-        vector_db=vector_db,
-    )
-
-    result = retrieval_comparison()
-    logger.info(f"Retrieval comparison time: {time.time() - start_time} seconds")
-    save_json(result, DEFAULT_RETRIEVAL_COMPARISON_FILE)
+    for top_k in [3, 5, 10, 15]:
+        start_time = time.time()
+        retrieval_comparison = RetrievalComparison(
+            dataset=eval_dataset,
+            cross_encoder=cross_encoder,
+            vector_db=vector_db,
+        )
+        result = retrieval_comparison(top_k=top_k)
+        save_json(
+            result,
+            DEFAULT_RETRIEVAL_COMPARISON_FILE.replace(".json", f"_top_{top_k}.json"),
+        )
+        logger.info(
+            f"Retrieval comparison time: {time.time() - start_time} seconds for top_k={top_k}"
+        )
 
     # 7. Run RAG evaluation
     start_time = time.time()

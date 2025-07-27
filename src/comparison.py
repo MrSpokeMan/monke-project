@@ -61,7 +61,7 @@ class RAGComparison:
         responses = []
         for item in self.dataset:
             start_time = time.time()
-            response = self.assistant.generate_response(
+            response = await self.assistant.generate_response(
                 item["question"], use_reranker=use_reranker, top_k=top_k
             )
             responses.append(response)
@@ -127,6 +127,7 @@ class RetrievalComparison:
                 "without_reranker": time_without / total_items,
                 "with_reranker": time_with / total_items,
             },
+            "top_k": top_k,
         }
 
     def _retrieve_documents(
