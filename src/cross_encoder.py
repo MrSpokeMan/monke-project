@@ -1,45 +1,33 @@
 import json
-import vector_db
-from langchain_community.cross_encoders import HuggingFaceCrossEncoder
-from langchain_community.document_transformers import LongContextReorder
-import torch
 
-def _truncate(text: str, max_length: int = 512) -> str:
-    """Truncate text to a maximum length."""
-    if len(text) > max_length:
-        return text[:max_length]
-    return text
+from langchain_community.document_transformers import LongContextReorder
+from sentence_transformers import CrossEncoder as SentenceTransformersCrossEncoder
+
+from utils import get_device, truncate
+
 
 class CrossEncoder:
-    def __init__(self, vector_db: vector_db.VectorDB = None):
-        self.db = vector_db
-        self.device = "cuda" if torch.cuda.is_available() else "cpu"
-        self.x_encoder = HuggingFaceCrossEncoder(model_name='BAAI/bge-reranker-base', model_kwargs={'device': self.device})
+    def __init__(self, model_name: str = "BAAI/bge-reranker-v2-m3") -> None:
+        self.cross_encoder = SentenceTransformersCrossEncoder(
+            model_name, device=get_device()
+        )
+        self.max_length = self.cross_encoder.max_length
 
-    def answer_query(self, query:str, answer_list:list, reordered_length: int = 10):
-        pairs = [
-            (query, _truncate(item['entity']['text']))
+    def rerank_format_documents(
+        self, query: str, answer_list: list, reordered_length: int = 10
+    ) -> tuple[list[dict], str]:
+        selected_docs = self.rerank_documents(query, answer_list, reordered_length)
+        reordered = LongContextReorder().transform_documents(selected_docs)
+        return selected_docs, json.dumps(reordered)
+
+    def rerank_documents(
+        self, query: str, answer_list: list, reordered_length: int = 10
+    ) -> list[dict]:
+        docs = [
+            {"name": item["entity"]["name"], "text": item["entity"]["text"]}
             for item in answer_list[0]
         ]
-
-        scores = self.x_encoder.score(pairs)
-
-        docs = [{"name": item['entity']['name'], "text": item['entity']['text']}
-                for item in answer_list[0]]
-
-        reranked_results = sorted(
-            zip(docs, scores),
-            key=lambda x: x[1],
-            reverse=True
-        )
-        new_results = [result for result, _ in reranked_results]
-        reordered = LongContextReorder().transform_documents(new_results)
-
-        return reordered[:reordered_length], json.dumps(reordered[:reordered_length])
-
-
-if __name__ == '__main__':
-    cross_encoder = CrossEncoder()
-    query = "What is the law about?"
-    result = cross_encoder.answer_query(query)
-    print(len(result))
+        pairs = [(query, truncate(doc["text"], self.max_length // 2)) for doc in docs]
+        scores = self.cross_encoder.predict(pairs)
+        docs_with_scores = sorted(zip(docs, scores), key=lambda x: x[1], reverse=True)
+        return [doc for doc, _ in docs_with_scores[:reordered_length]]

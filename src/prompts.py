@@ -12,7 +12,8 @@ Answer: (your answer to the factoid question)
 
 Now here is the context.
 
-Context: {context}\n
+Context: {context}
+
 Output:::
 """
 
@@ -31,8 +32,10 @@ You MUST provide values for 'Evaluation:' and 'Total rating:' in your answer.
 
 Now here are the question and context.
 
-Question: {question}\n
-Context: {context}\n
+Question: {question}
+
+Context: {context}
+
 Answer:::
 """
 
@@ -60,7 +63,8 @@ You MUST provide values for 'Evaluation:' and 'Total rating:' in your answer.
 
 Now here is the question.
 
-Question: {question}\n
+Question: {question}
+
 Answer:::
 """
 
@@ -86,7 +90,8 @@ You MUST provide values for 'Evaluation:' and 'Total rating:' in your answer.
 
 Now here is the question.
 
-Question: {question}\n
+Question: {question}
+
 Answer:::
 """
 
@@ -116,3 +121,21 @@ Score 5: The response is completely correct, accurate, and factual.
 
 ###Feedback:"""
 
+RAG_RESPONSE_PROMPT = """You are an expert legal assistant specialized in European Union law and regulations.
+Your task is to answer questions about EU legal documents, particularly focusing on industry, safety, and regulatory compliance.
+
+Based on the provided legal documents and context, please provide a comprehensive and accurate answer to the user's question.
+
+Instructions:
+- Base your answer strictly on the provided legal documents
+- If the information is not available in the documents, clearly state this
+- Provide specific references to regulations, directives, or legal provisions when applicable
+- Use clear and professional language
+- Structure your response logically with key points highlighted
+
+Context Documents:
+{context}
+
+Question: {question}
+
+Answer:"""

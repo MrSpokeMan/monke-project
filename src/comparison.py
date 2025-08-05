@@ -1,98 +1,176 @@
+import asyncio
+import logging
 import time
-import json
-from os.path import exists
+
+from openai import AsyncOpenAI
+
+from cross_encoder import CrossEncoder
+from evaluation import call_llm
+from law_assistant import LawAssistant
 from prompts import EVALUATION_PROMPT
 from vector_db import VectorDB
-from law_assistant import LawAssistant
-from evalutation import Evaluation
-from create_dataset import EurlexSelector
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 
-class Comparison:
-    def __init__(self, vector_db: VectorDB = None):
-        self.vector_db = vector_db if vector_db else VectorDB()
-        self.assistant = LawAssistant(vector_db=self.vector_db)
+class RAGComparison:
+    def __init__(
+        self,
+        openai_client: AsyncOpenAI,
+        vector_db: VectorDB,
+        cross_encoder: CrossEncoder,
+        dataset: list[dict[str, str]],
+        model_name: str = "gpt-4.1-nano-2025-04-14",
+    ):
+        self.vector_db = vector_db
+        self.assistant = LawAssistant(
+            vector_db=self.vector_db,
+            openai_client=openai_client,
+            cross_encoder=cross_encoder,
+            model_name=model_name,
+        )
+        self.dataset = dataset
+        self.openai_client = openai_client
+        self.model_name = model_name
 
-        if exists('../data/evaluation_results.json'):
-            self.evaluate = Evaluation(openai_client=self.assistant.openai_client)
-            with open('../data/evaluation_results.json', 'r', encoding='utf-8') as f:
-                self.dataset = json.load(f)
-            print("Loaded dataset from ../data/evaluation_results.json")
-        elif exists('../data/scraped_data.json'):
-            selector = EurlexSelector(data="../data/scraped_data.json")
-            context_list = [item[0] for item in selector.original_data if item[0].get("text")]
-            self.evaluate = Evaluation(context_list[:5], self.assistant.openai_client)
-            self.dataset = self.evaluate()
-        else:
-            raise FileNotFoundError("Missing dataset at ../data/scraped_data.json or ../data/evaluation_results.json")
-
-
-    def _compare_responses(self, query: str):
-        start_bi_encoder = time.time()
-        bot_bi = self.assistant.generate_response_research(query, reranker=False)
-        end_bi_encoder = time.time()
-
-        start_cross_encoder = time.time()
-        bot_cross = self.assistant.generate_response_research(query, reranker=True)
-        end_cross_encoder = time.time()
-
+    async def __call__(self, top_k: int = 10) -> dict:
+        with_reranker_score, with_reranker_time = await self._evaluate_retrieval_method(
+            use_reranker=True, top_k=top_k
+        )
+        (
+            without_reranker_score,
+            without_reranker_time,
+        ) = await self._evaluate_retrieval_method(use_reranker=False, top_k=top_k)
         return {
-            "bi_encoder_assistant_response": bot_bi,
-            "bi_encoder_latency": round(end_bi_encoder - start_bi_encoder, 4),
-            "cross_encoder_assistant_response": bot_cross,
-            "cross_encoder_latency": round(end_cross_encoder - start_cross_encoder, 4)
+            "score": {
+                "with_reranker": with_reranker_score,
+                "without_reranker": without_reranker_score,
+            },
+            "time": {
+                "with_reranker": with_reranker_time,
+                "without_reranker": without_reranker_time,
+            },
         }
 
-    def evaluate_dataset(self):
-        print("Evaluating dataset...")
-
+    async def _evaluate_retrieval_method(
+        self, use_reranker: bool, top_k: int = 10
+    ) -> tuple[float, float]:
+        total_time = 0.0
+        total_score = 0
+        responses = []
         for item in self.dataset:
-            query = item['question']
+            start_time = time.time()
+            response = await self.assistant.generate_response(
+                item["question"], use_reranker=use_reranker, top_k=top_k
+            )
+            responses.append(response)
+            total_time += time.time() - start_time
 
-            expected = item['answer']
+        scoring_tasks = [
+            self._evaluate_with_llm_as_judge(item["question"], response, item["answer"])
+            for item, response in zip(self.dataset, responses)
+        ]
 
-            response = self._compare_responses(query)
-            item.update(response)
+        scoring_results = await asyncio.gather(*scoring_tasks, return_exceptions=True)
 
-            for evaluator in ["bi", "cross"]:
-                eval_prompt = EVALUATION_PROMPT.format(
-                    instruction=query,
-                    response=response[f"{evaluator}_encoder_assistant_response"],
-                    reference_answer=expected
-                )
-                eval_prompt = self.evaluate.call_llm(eval_prompt)
-                try:
-                    feedback, score = [item.strip() for item in eval_prompt.split("[RESULT]")]
-                except ValueError:
-                    feedback = eval_prompt
-                    score = 0
+        for item, result in zip(self.dataset, scoring_results):
+            if isinstance(result, Exception):
+                continue
+            score, _ = result  # type: ignore[misc]
+            total_score += score
 
-                try:
-                    score = int(score)
-                except ValueError:
-                    score = 0
+        return total_score / len(self.dataset), total_time / len(self.dataset)
 
-                item[f"{evaluator}_encoder_feedback"] = feedback
-                item[f"{evaluator}_encoder_score"] = score
+    async def _evaluate_with_llm_as_judge(
+        self, instruction: str, response: str, reference_answer: str
+    ) -> tuple[int, str]:
+        eval_prompt = EVALUATION_PROMPT.format(
+            instruction=instruction,
+            response=response,
+            reference_answer=reference_answer,
+        )
+        eval_prompt = await call_llm(self.openai_client, eval_prompt, self.model_name)
+        try:
+            feedback, score = [item.strip() for item in eval_prompt.split("[RESULT]")]
+            score = int(score)
+            return score, feedback
+        except ValueError:
+            return 0, "Error parsing evaluation result"
 
-    def calculate_accuracy(self):
-        bi_accuracy = 0
-        cross_accuracy = 0
-        bi_avg_latency = 0
-        cross_avg_latency = 0
+
+class RetrievalComparison:
+    def __init__(
+        self,
+        vector_db: VectorDB,
+        cross_encoder: CrossEncoder,
+        dataset: list[dict[str, str]],
+    ):
+        self.vector_db = vector_db
+        self.cross_encoder = cross_encoder
+        self.dataset = dataset
+
+    def __call__(self, top_k: int = 10) -> dict:
+        total_items = len(self.dataset)
+        correct_without, time_without = self._evaluate_retrieval_method(
+            use_reranker=False, top_k=top_k
+        )
+        correct_with, time_with = self._evaluate_retrieval_method(
+            use_reranker=True, top_k=top_k
+        )
+        return {
+            "accuracy": {
+                "without_reranker": correct_without / total_items,
+                "with_reranker": correct_with / total_items,
+            },
+            "avg_time": {
+                "without_reranker": time_without / total_items,
+                "with_reranker": time_with / total_items,
+            },
+            "top_k": top_k,
+        }
+
+    def _retrieve_documents(
+        self, query: str, use_reranker: bool = False, top_k: int = 10
+    ) -> list:
+        try:
+            if use_reranker:
+                return self._retrieve_with_reranker(query, top_k)
+            else:
+                return self._retrieve_without_reranker(query, top_k)
+        except Exception as e:
+            logger.error(f"Error in retrieval: {e}")
+            return []
+
+    def _retrieve_with_reranker(
+        self, query: str, top_k: int, multiplier: int = 5
+    ) -> list:
+        retrieved_docs, _ = self.vector_db.get_response(
+            query, search_width=top_k * multiplier
+        )
+        return self.cross_encoder.rerank_documents(
+            query, retrieved_docs, reordered_length=top_k
+        )
+
+    def _retrieve_without_reranker(self, query: str, top_k: int) -> list:
+        retrieved_docs, _ = self.vector_db.get_response(query, search_width=top_k)
+        return [
+            {"name": doc["entity"]["name"], "text": doc["entity"]["text"]}
+            for doc in retrieved_docs[0][:top_k]
+        ]
+
+    def _evaluate_retrieval_method(
+        self, use_reranker: bool, top_k: int = 10
+    ) -> tuple[int, float]:
+        correct_count = 0
+        total_time = 0.0
         for item in self.dataset:
-            bi_accuracy += item['bi_encoder_score']
-            cross_accuracy += item['cross_encoder_score']
-            bi_avg_latency += item['bi_encoder_latency']
-            cross_avg_latency += item['cross_encoder_latency']
-
-        print("Bi-Encoder Accuracy:", bi_accuracy / len(self.dataset))
-        print("Cross-Encoder Accuracy:", cross_accuracy / len(self.dataset))
-        print("Bi-Encoder Average Latency:", bi_avg_latency / len(self.dataset))
-        print("Cross-Encoder Average Latency:", cross_avg_latency / len(self.dataset))
-
-if __name__ == '__main__':
-    comparison = Comparison()
-    comparison.evaluate_dataset()
-    comparison.calculate_accuracy()
-
+            start_time = time.time()
+            retrieved_docs = self._retrieve_documents(
+                item["question"], use_reranker, top_k
+            )
+            # Check if the expected context is in the retrieved documents:
+            if any(item["context"] in doc["text"] for doc in retrieved_docs):
+                correct_count += 1
+            total_time += time.time() - start_time
+        return correct_count, total_time
