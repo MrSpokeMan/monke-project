@@ -1,114 +1,68 @@
-import vector_db
-import ollama
-import cross_encoder
+import asyncio
+import logging
+
+from openai import AsyncOpenAI
+
+from cross_encoder import CrossEncoder
+from evaluation import call_llm
+from prompts import RAG_RESPONSE_PROMPT
+from vector_db import VectorDB
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
 
 class LawAssistant:
-    def __init__(self):
-        self.client = ollama.Client()
-        self.db = vector_db.VectorDB()
-        self.x_encoder = cross_encoder.CrossEncoder(self.db)
-        self.messages = []
+    def __init__(
+        self,
+        vector_db: VectorDB,
+        cross_encoder: CrossEncoder,
+        openai_client: AsyncOpenAI,
+        model_name: str = "gpt-4.1-nano-2025-04-14",
+    ):
+        self.openai_client = openai_client
+        self.db = vector_db
+        self.cross_encoder = cross_encoder
+        self.model_name = model_name
+        self.messages: list[dict[str, str]] = []
 
-    def generate_response(self, user_input):
-        self.messages = [
-                {"role": "user", "content": user_input}
-        ]
+    async def generate_response(
+        self,
+        query: str,
+        use_reranker: bool = True,
+        *,
+        top_k: int = 5,
+        multiplier: int = 2,
+    ):
+        try:
+            if use_reranker:
+                response, formatted = self.db.get_response(
+                    query, search_width=top_k * multiplier
+                )
+                _, formatted = self.cross_encoder.rerank_format_documents(
+                    query, response, top_k
+                )
+            else:
+                _, formatted = self.db.get_response(query, search_width=top_k)
 
-        response = self.client.chat(
-            model="llama3.2",
-            messages=self.messages,
-            tools=[
-                {
-                    "type": "function",
-                    "function": {
-                        "name": "get_response",
-                        "description": "Search about industry law in a vector database",
-                        "parameters": {
-                            "type": "object",
-                            "properties": {
-                                "prompt": {
-                                    "type": "string",
-                                    "description": "The search query",
-                                },
-                            },
-                            "required": ["prompt"],
-                        },
-                    }
-                },
-                {
-                    "type": "function",
-                    "function": {
-                        "name": "rerank_response",
-                        "description": "Rerank search results using cross-encoder for better relevance",
-                        "parameters": {
-                            "type": "object",
-                            "properties": {
-                                "prompt": {
-                                    "type": "string",
-                                    "description": "The user query to rerank results for",
-                                },
-                            },
-                            "required": ["prompt"],
-                        },
-                    },
-                }
-            ]
+            prompt = RAG_RESPONSE_PROMPT.format(context=formatted, question=query)
+            response = await call_llm(self.openai_client, prompt, self.model_name)
+            return response
+
+        except Exception as e:
+            logger.error(f"Error generating response: {e}")
+            return f"I apologize, but I encountered an error while processing your query: {str(e)}"
+
+    def generate_response_sync(
+        self,
+        query: str,
+        use_reranker: bool = True,
+        *,
+        top_k: int = 5,
+        multiplier: int = 2,
+    ):
+        return asyncio.run(
+            self.generate_response(
+                query, use_reranker, top_k=top_k, multiplier=multiplier
+            )
         )
-
-        #if we want answer from both of the models
-        # prompt = response["message"]["tool_calls"][0]["function"]["arguments"]["prompt"]
-        # vec, vec_form = self.db.get_response(prompt)
-        # reranked, reranked_form = self.x_encoder.answer_query(prompt)
-        #
-        # self.messages_vec.append({
-        #     "role": "tool",
-        #     "name": "get_response",
-        #     "content": vec_form
-        # })
-        #
-        # self.messages_reranked.append({
-        #     "role": "tool",
-        #     "name": "rerank_response",
-        #     "content": reranked_form
-        # })
-
-
-        # Add the model's response to the conversation history
-        self.messages.append(response["message"])
-
-        # Check if the model decided to use the provided function
-
-        if not response["message"].get("tool_calls"):
-            print("The model didn't use the function. Its response was:")
-            print(response["message"]["content"])
-            return "The model didn't use the function. Its response was:" + response["message"]["content"]
-
-        # Process function calls made by the model
-        if response["message"].get("tool_calls"):
-            available_functions = {
-                "get_response": self.db.get_response,
-                "rerank_response": self.x_encoder.answer_query,
-            }
-
-            for tool in response["message"]["tool_calls"]:
-                function_to_call = available_functions[tool["function"]["name"]]
-                function_args = tool["function"]["arguments"]
-                function_response, formated = function_to_call(**function_args)
-                # Add function response to the conversation
-                tool_message = {
-                    "role": "tool",
-                    "content": formated,
-                }
-                self.messages.append(tool_message)
-
-        # Second API call: Get final response from the model
-        final_response = self.client.chat(model="llama3.2", messages=self.messages)
-
-        self.messages.append(final_response["message"])
-        return final_response["message"]["content"]
-
-
-if __name__ == '__main__':
-    assistant = LawAssistant()
-    resp = assistant.generate_response("What is the law about industry?")
-    print(resp)

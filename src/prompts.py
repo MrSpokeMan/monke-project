@@ -12,7 +12,8 @@ Answer: (your answer to the factoid question)
 
 Now here is the context.
 
-Context: {context}\n
+Context: {context}
+
 Output:::
 """
 
@@ -31,8 +32,10 @@ You MUST provide values for 'Evaluation:' and 'Total rating:' in your answer.
 
 Now here are the question and context.
 
-Question: {question}\n
-Context: {context}\n
+Question: {question}
+
+Context: {context}
+
 Answer:::
 """
 
@@ -60,7 +63,8 @@ You MUST provide values for 'Evaluation:' and 'Total rating:' in your answer.
 
 Now here is the question.
 
-Question: {question}\n
+Question: {question}
+
 Answer:::
 """
 
@@ -86,7 +90,52 @@ You MUST provide values for 'Evaluation:' and 'Total rating:' in your answer.
 
 Now here is the question.
 
-Question: {question}\n
+Question: {question}
+
 Answer:::
 """
 
+EVALUATION_PROMPT = """###Task Description:
+An instruction (might include an Input inside it), a response to evaluate, a reference answer that gets a score of 5, and a score rubric representing a evaluation criteria are given.
+1. Write a detailed feedback that assess the quality of the response strictly based on the given score rubric, not evaluating in general.
+2. After writing a feedback, write a score that is an integer between 1 and 5. You should refer to the score rubric.
+3. The output format should look as follows: \"Feedback: {{write a feedback for criteria}} [RESULT] {{an integer number between 1 and 5}}\"
+4. Please do not generate any other opening, closing, and explanations. Be sure to include [RESULT] in your output.
+
+###The instruction to evaluate:
+{instruction}
+
+###Response to evaluate:
+{response}
+
+###Reference Answer (Score 5):
+{reference_answer}
+
+###Score Rubrics:
+[Is the response correct, accurate, and factual based on the reference answer?]
+Score 1: The response is completely incorrect, inaccurate, and/or not factual.
+Score 2: The response is mostly incorrect, inaccurate, and/or not factual.
+Score 3: The response is somewhat correct, accurate, and/or factual.
+Score 4: The response is mostly correct, accurate, and factual.
+Score 5: The response is completely correct, accurate, and factual.
+
+###Feedback:"""
+
+RAG_RESPONSE_PROMPT = """You are an expert legal assistant specialized in European Union law and regulations.
+Your task is to answer questions about EU legal documents, particularly focusing on industry, safety, and regulatory compliance.
+
+Based on the provided legal documents and context, please provide a comprehensive and accurate answer to the user's question.
+
+Instructions:
+- Base your answer strictly on the provided legal documents
+- If the information is not available in the documents, clearly state this
+- Provide specific references to regulations, directives, or legal provisions when applicable
+- Use clear and professional language
+- Structure your response logically with key points highlighted
+
+Context Documents:
+{context}
+
+Question: {question}
+
+Answer:"""
