@@ -1,66 +1,63 @@
-# Environment Setup
+# Advanced RAG with Rerankers
 
-1. **Install Ollama**
-   - Download from [Ollama Website](https://ollama.com/download/windows)
-   - After installation, open **CMD** and run:
-     ```cmd
-     ollama run llama3.2
-     ```
+This repository demonstrates the application of rerankers as an Advanced RAG (Retrieval-Augmented Generation) technique to improve retrieval performance. The project showcases how reranking can enhance the quality of retrieved documents before they are passed to the generation model.
 
-2. **Set Up Milvus Database**
-   - Follow the instructions at [Milvus Installation (Windows)](https://milvus.io/docs/install_standalone-windows.md)
+## Installation
 
-3. **Create and Activate a Virtual Environment**
-   - In your project directory, run:
-     ```cmd
-     python -m venv <venv_name>
-     ```
-   - Activate the virtual environment (Windows command prompt):
-     ```cmd
-     <venv_name>\Scripts\activate
-     ```
+This project uses [uv](https://docs.astral.sh/uv/) for fast and reliable dependency management.
 
-4. **Install Dependencies**
-   - While the environment is active, install the required packages:
-     ```cmd
-     pip install -r requirements.txt
-     ```
+### Prerequisites
+- Python 3.10+
+- [uv](https://docs.astral.sh/uv/getting-started/installation/) package manager
 
-5. **OPTIONAL** Install PyTorch
-   - You might install PyTorch to use GPU while calculating embeddings:
-     ```cmd
-     pip3 install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu128
-     ```
+### Install uv
+```bash
+pip install uv
+```
 
----
+### Install Dependencies
+```bash
+uv sync
+```
 
-# Load Dataset into the Database
+This will create a virtual environment and install all required dependencies automatically.
 
-- Populate the vector database by running:
-  ```cmd
-  py src\vector_db.py
-  ```
+## Setup
 
----
+### 1. Start Milvus Vector Database
+Before running the application, you need to start the Milvus vector database:
 
-# Run Frontend
+```bash
+cd milvus
+docker-compose up -d
+```
 
-- Start the Streamlit application by executing the following command in the terminal:
-  ```cmd
-  streamlit run src\frontend.py
-  ```
+This will start Milvus using Docker Compose with the configuration provided in `milvus/docker-compose.yml`.
 
----
+### 2. Set up Environment Variables
+Copy the example environment file and configure your API key:
 
-# Run Evaluation
+```bash
+cp .env.example .env
+```
 
-1. Create a `.env` file in the root directory of your project.
-2. Generate an API key by visiting: [Google AI Studio – API Key](https://aistudio.google.com/app/apikey?hl=pl)
-3. Inside the `.env` file, add the following line (replace `<API_KEY>` with your actual key):
-   ```env
-   GOOGLE_API_KEY=<API_KEY>
-   ```
-4. Execute the evaluation script:
-   ```cmd
-   py src\evaluation.py
-   ```
+Then edit the `.env` file and replace `your_openai_api_key_here` with your actual OpenAI API key. You can obtain an API key from the [OpenAI Platform](https://platform.openai.com/api-keys).
+
+## Usage
+
+To run the complete pipeline, execute:
+
+```bash
+uv run src/main.py
+```
+
+This will run the complete RAG pipeline with reranking evaluation:
+
+1. **Data Download**: Downloads EUR-Lex legal documents
+2. **Vector Database Setup**: Creates embeddings using sentence transformers and stores them in Milvus
+3. **Evaluation Dataset Generation**: Generates question-answer pairs from selected documents using OpenAI's LLM
+4. **Cross-Encoder Reranking**: Initializes a BAAI/bge-reranker model for improving retrieval results
+5. **Retrieval Comparison**: Tests retrieval performance with and without reranking across different top-k values (3, 5, 10, 15)
+6. **RAG Evaluation**: Performs end-to-end RAG evaluation comparing baseline retrieval vs. reranked retrieval for answer generation
+
+The results are saved as JSON files in the `data/` directory for analysis.
