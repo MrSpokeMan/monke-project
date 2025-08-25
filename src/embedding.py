@@ -11,9 +11,7 @@ class EmbeddingModel:
     ) -> None:
         self.model = SentenceTransformer(model_name, device=get_device())
 
-    def __call__(
-        self, documents: list[list[dict[str, str]]]
-    ) -> list[list[dict[str, str]]]:
+    def __call__(self, documents: list[list[dict[str, str]]]) -> list[list[dict[str, str]]]:
         vector_laws = []
         for document in tqdm(documents, unit="law", desc="Processing laws"):
             processed_points = []

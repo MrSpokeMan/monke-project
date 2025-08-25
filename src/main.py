@@ -34,12 +34,7 @@ def flatten_and_select_docs(
 ) -> list[dict[str, str]]:
     random.seed(seed)
     flattened = [item for sublist in data for item in sublist]
-    return [
-        item
-        for item in flattened
-        if random.random() < selection_probability
-        if item.get("text")
-    ]
+    return [item for item in flattened if random.random() < selection_probability if item.get("text")]
 
 
 async def main():
@@ -94,9 +89,7 @@ async def main():
             result,
             DEFAULT_RETRIEVAL_COMPARISON_FILE.replace(".json", f"_top_{top_k}.json"),
         )
-        logger.info(
-            f"Retrieval comparison time: {time.time() - start_time} seconds for top_k={top_k}"
-        )
+        logger.info(f"Retrieval comparison time: {time.time() - start_time} seconds for top_k={top_k}")
 
     # 7. Run RAG evaluation
     start_time = time.time()

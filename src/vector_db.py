@@ -10,9 +10,7 @@ logger = logging.getLogger(__name__)
 
 
 class VectorDB:
-    def __init__(
-        self, embedding_model: EmbeddingModel, milvus_client: pym.MilvusClient
-    ) -> None:
+    def __init__(self, embedding_model: EmbeddingModel, milvus_client: pym.MilvusClient) -> None:
         self.milvus_client = milvus_client
         self.embedding_model = embedding_model
         self.collection_name = "laws"
@@ -34,9 +32,7 @@ class VectorDB:
             logger.error(f"Error during vector search: {e}")
             raise
 
-    def create_collection_from_documents(
-        self, documents: list[list[dict[str, str]]], drop_existing: bool = False
-    ):
+    def create_collection_from_documents(self, documents: list[list[dict[str, str]]], drop_existing: bool = False):
         try:
             if drop_existing:
                 logger.info("Dropping existing collection")
@@ -67,20 +63,14 @@ class VectorDB:
                         dtype=pym.DataType.FLOAT_VECTOR,
                         dim=vector_size,
                     ),
-                    pym.FieldSchema(
-                        name="text", dtype=pym.DataType.VARCHAR, max_length=int(1e4)
-                    ),
-                    pym.FieldSchema(
-                        name="name", dtype=pym.DataType.VARCHAR, max_length=int(3e3)
-                    ),
+                    pym.FieldSchema(name="text", dtype=pym.DataType.VARCHAR, max_length=int(1e4)),
+                    pym.FieldSchema(name="name", dtype=pym.DataType.VARCHAR, max_length=int(3e3)),
                 ],
                 description="laws",
             )
             index_params = self.milvus_client.prepare_index_params()
             index_params.add_index(field_name="id", index_type="AUTOINDEX")
-            index_params.add_index(
-                field_name="vector", index_type="AUTOINDEX", metric_type="COSINE"
-            )
+            index_params.add_index(field_name="vector", index_type="AUTOINDEX", metric_type="COSINE")
             self.milvus_client.create_collection(
                 collection_name=self.collection_name,
                 dimension=vector_size,
@@ -94,9 +84,7 @@ class VectorDB:
     def collection_exists(self) -> bool:
         return self.milvus_client.has_collection(self.collection_name)
 
-    def insert_vectors(
-        self, docs_with_embeddings: list[list[dict[str, str]]], batch_size: int = 500
-    ):
+    def insert_vectors(self, docs_with_embeddings: list[list[dict[str, str]]], batch_size: int = 500):
         data = []
         id = 0
         for law in docs_with_embeddings:
@@ -113,7 +101,5 @@ class VectorDB:
 
         for i in range(0, len(data), batch_size):
             batch = data[i : i + batch_size]
-            self.milvus_client.insert(
-                collection_name=self.collection_name, data=batch, progress_bar=True
-            )
+            self.milvus_client.insert(collection_name=self.collection_name, data=batch, progress_bar=True)
             logger.info(f"Inserted batch {i // batch_size + 1}, size: {len(batch)}")

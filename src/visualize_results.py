@@ -1,8 +1,9 @@
 import json
 import os
+from pathlib import Path
+
 import matplotlib.pyplot as plt
 import numpy as np
-from pathlib import Path
 
 from utils import DEFAULT_RETRIEVAL_COMPARISON_FILE, load_json
 
@@ -37,9 +38,7 @@ def create_accuracy_plot(results: dict[int, dict]) -> None:
     accuracy_with = [results[k]["accuracy"]["with_reranker"] for k in top_k_values]
 
     # Data for without_reranker
-    accuracy_without = [
-        results[k]["accuracy"]["without_reranker"] for k in top_k_values
-    ]
+    accuracy_without = [results[k]["accuracy"]["without_reranker"] for k in top_k_values]
 
     # Create figure
     fig, ax = plt.subplots(1, 1, figsize=(10, 6))
@@ -82,9 +81,7 @@ def create_accuracy_plot(results: dict[int, dict]) -> None:
     print(f"\nWith Reranker:")
     print(f"  Accuracy range: {min(accuracy_with):.3f} - {max(accuracy_with):.3f}")
     print(f"\nWithout Reranker:")
-    print(
-        f"  Accuracy range: {min(accuracy_without):.3f} - {max(accuracy_without):.3f}"
-    )
+    print(f"  Accuracy range: {min(accuracy_without):.3f} - {max(accuracy_without):.3f}")
 
 
 def main():

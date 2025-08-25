@@ -82,10 +82,7 @@ class EurlexDownloader:
                 laws_in_force = [
                     u
                     for u in laws
-                    if any(
-                        p.get_text(strip=True) == "In force"
-                        for p in u.find_all("p", class_="forceIndicator")
-                    )
+                    if any(p.get_text(strip=True) == "In force" for p in u.find_all("p", class_="forceIndicator"))
                 ]
 
                 html_tasks = []
@@ -99,9 +96,7 @@ class EurlexDownloader:
                     html_tasks.append(task)
 
                 if html_tasks:
-                    html_results = await asyncio.gather(
-                        *html_tasks, return_exceptions=True
-                    )
+                    html_results = await asyncio.gather(*html_tasks, return_exceptions=True)
 
                     page_documents = []
                     for result in html_results:
@@ -126,25 +121,17 @@ class EurlexDownloader:
                 soup = BeautifulSoup(text, "html.parser")
 
                 title_div = soup.find("div", class_="eli-main-title")
-                title_parts = (
-                    title_div.find_all("p", class_="oj-doc-ti") if title_div else []
-                )
+                title_parts = title_div.find_all("p", class_="oj-doc-ti") if title_div else []
                 plain_text = soup.find("div", id="TexteOnly")
                 all_p = soup.find_all("p")
                 doc_titles = [p for p in all_p if "doc-ti" in p.get("class", [])]
                 articles = [p for p in all_p if "ti-art" in p.get("class", [])]
-                group_headers = [
-                    p for p in all_p if "oj-ti-grseq-1" in p.get("class", [])
-                ]
-                subdivisions = soup.find_all(
-                    "div", id=re.compile(r"^rct_"), class_="eli-subdivision"
-                )
+                group_headers = [p for p in all_p if "oj-ti-grseq-1" in p.get("class", [])]
+                subdivisions = soup.find_all("div", id=re.compile(r"^rct_"), class_="eli-subdivision")
 
                 if title_div and title_parts and subdivisions:
                     logger.debug("Using first format")
-                    parsed = parse_template_1_first_format(
-                        soup, title_parts, subdivisions
-                    )
+                    parsed = parse_template_1_first_format(soup, title_parts, subdivisions)
                 elif plain_text:
                     logger.debug("Using second format")
                     parsed = parse_template_2_second_format(soup, plain_text)
@@ -153,9 +140,7 @@ class EurlexDownloader:
                     parsed = parse_template_3_third_format(soup, doc_titles)
                 elif title_div and title_parts and group_headers and not subdivisions:
                     logger.debug("Using fourth format")
-                    parsed = parse_template_4_fourth_format(
-                        soup, title_parts, group_headers
-                    )
+                    parsed = parse_template_4_fourth_format(soup, title_parts, group_headers)
                 else:
                     logger.warning("Unknown document format")
                     return []
@@ -191,9 +176,7 @@ class EurlexDownloader:
                 result.append({"name": name, "text": text})
                 continue
 
-            logger.debug(
-                f"Splitting section from law '{name}' (length {len(text.encode('utf-8'))} bytes)..."
-            )
+            logger.debug(f"Splitting section from law '{name}' (length {len(text.encode('utf-8'))} bytes)...")
 
             start = 0
             while start < len(text):
@@ -202,15 +185,11 @@ class EurlexDownloader:
                     result.append({"name": name, "text": remaining_text.strip()})
                     break
 
-                newline_indices = [
-                    i + 1 for i, c in enumerate(remaining_text) if c == "\n"
-                ]
+                newline_indices = [i + 1 for i, c in enumerate(remaining_text) if c == "\n"]
                 split_at = find_split_index(remaining_text, newline_indices)
 
                 if split_at is None:
-                    space_indices = [
-                        i + 1 for i, c in enumerate(remaining_text) if c == " "
-                    ]
+                    space_indices = [i + 1 for i, c in enumerate(remaining_text) if c == " "]
                     split_at = find_split_index(remaining_text, space_indices)
 
                 if split_at is None:
@@ -228,8 +207,6 @@ class EurlexDownloader:
         for i, entry in enumerate(result):
             byte_len = len(entry["text"].encode("utf-8"))
             if byte_len > max_len:
-                logger.warning(
-                    f"Chunk {i} too long after split: {byte_len} bytes — name: {entry['name'][:60]}..."
-                )
+                logger.warning(f"Chunk {i} too long after split: {byte_len} bytes — name: {entry['name'][:60]}...")
 
         return result

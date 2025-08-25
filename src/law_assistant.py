@@ -36,12 +36,8 @@ class LawAssistant:
     ):
         try:
             if use_reranker:
-                response, formatted = self.db.get_response(
-                    query, search_width=top_k * multiplier
-                )
-                _, formatted = self.cross_encoder.rerank_format_documents(
-                    query, response, top_k
-                )
+                response, formatted = self.db.get_response(query, search_width=top_k * multiplier)
+                _, formatted = self.cross_encoder.rerank_format_documents(query, response, top_k)
             else:
                 _, formatted = self.db.get_response(query, search_width=top_k)
 
@@ -61,8 +57,4 @@ class LawAssistant:
         top_k: int = 5,
         multiplier: int = 2,
     ):
-        return asyncio.run(
-            self.generate_response(
-                query, use_reranker, top_k=top_k, multiplier=multiplier
-            )
-        )
+        return asyncio.run(self.generate_response(query, use_reranker, top_k=top_k, multiplier=multiplier))

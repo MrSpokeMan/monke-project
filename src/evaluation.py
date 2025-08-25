@@ -49,9 +49,7 @@ class EvaluationDatasetGenerator:
         query = QA_GENERATION_PROMPT.format(context=context["text"])
         try:
             response = await call_llm(self.openai_client, query, self.model_name)
-            result_dict["question"] = (
-                response.split("Factoid question: ")[1].split("Answer: ")[0].strip()
-            )
+            result_dict["question"] = response.split("Factoid question: ")[1].split("Answer: ")[0].strip()
             result_dict["answer"] = response.split("Answer: ")[1].strip()
             return result_dict
         except (IndexError, AttributeError) as e:
@@ -59,17 +57,13 @@ class EvaluationDatasetGenerator:
             return None
 
     async def _generate_questions(self):
-        tasks = [
-            self._generate_single_question(context) for context in self.context_list
-        ]
+        tasks = [self._generate_single_question(context) for context in self.context_list]
         results = []
         with tqdm(total=len(tasks), desc="Generating Q&A", unit="q_and_a") as pbar:
             batch_size = 10
             for i in range(0, len(tasks), batch_size):
                 batch_tasks = tasks[i : i + batch_size]
-                batch_results = await asyncio.gather(
-                    *batch_tasks, return_exceptions=True
-                )
+                batch_results = await asyncio.gather(*batch_tasks, return_exceptions=True)
 
                 for result in batch_results:
                     if isinstance(result, Exception):
@@ -84,9 +78,7 @@ class EvaluationDatasetGenerator:
         evaluation_tasks = {
             "groundedness": call_llm(
                 self.openai_client,
-                QA_CRITIQUE_GROUNDEDNESS.format(
-                    question=output["question"], context=output["context"]
-                ),
+                QA_CRITIQUE_GROUNDEDNESS.format(question=output["question"], context=output["context"]),
                 self.model_name,
             ),
             "relevance": call_llm(
@@ -102,9 +94,7 @@ class EvaluationDatasetGenerator:
         }
 
         try:
-            evaluations = await asyncio.gather(
-                *[task for task in evaluation_tasks.values()], return_exceptions=True
-            )
+            evaluations = await asyncio.gather(*[task for task in evaluation_tasks.values()], return_exceptions=True)
             for criterion, evaluation in zip(evaluation_tasks.keys(), evaluations):
                 if isinstance(evaluation, Exception):
                     logger.error(
@@ -118,13 +108,9 @@ class EvaluationDatasetGenerator:
                     .split("Evaluation: ")[1]
                     .strip(),
                 )
-                output.update(
-                    {f"{criterion}_score": score, f"{criterion}_eval": eval_text}
-                )
+                output.update({f"{criterion}_score": score, f"{criterion}_eval": eval_text})
         except Exception as e:
-            logger.error(
-                f"Error processing evaluation for question '{output['question'][:50]}...': {e}"
-            )
+            logger.error(f"Error processing evaluation for question '{output['question'][:50]}...': {e}")
 
         return output
 
@@ -136,9 +122,7 @@ class EvaluationDatasetGenerator:
             batch_size = 5
             for i in range(0, len(tasks), batch_size):
                 batch_tasks = tasks[i : i + batch_size]
-                batch_results = await asyncio.gather(
-                    *batch_tasks, return_exceptions=True
-                )
+                batch_results = await asyncio.gather(*batch_tasks, return_exceptions=True)
                 for result in batch_results:
                     if isinstance(result, Exception):
                         logger.error(f"Error in evaluation batch: {result}")
@@ -156,11 +140,7 @@ def _remove_low_scores(
 ):
     filtered_outputs = []
     for output in outputs:
-        if (
-            output.get("groundedness_score")
-            and output.get("relevance_score")
-            and output.get("standalone_score")
-        ):
+        if output.get("groundedness_score") and output.get("relevance_score") and output.get("standalone_score"):
             if (
                 output["groundedness_score"] >= min_groundedness_score
                 and output["relevance_score"] >= min_relevance_score

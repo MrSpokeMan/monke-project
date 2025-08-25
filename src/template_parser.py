@@ -1,9 +1,7 @@
 from bs4 import BeautifulSoup
 
 
-def parse_template_1_first_format(
-    soup: BeautifulSoup, title_parts, subdivisions
-) -> list[dict]:
+def parse_template_1_first_format(soup: BeautifulSoup, title_parts, subdivisions) -> list[dict]:
     """Parse using the first (new) format with title_parts and subdivisions."""
     points = []
     name = "".join(p.get_text(strip=True) for p in title_parts)
@@ -41,9 +39,7 @@ def parse_template_2_second_format(soup: BeautifulSoup, plain_text) -> list[dict
     if collecting and current_article:
         articles.append(current_article)
 
-    grouped_articles = [
-        "\n".join(articles[i : i + 4]) for i in range(0, len(articles), 4)
-    ]
+    grouped_articles = ["\n".join(articles[i : i + 4]) for i in range(0, len(articles), 4)]
 
     for text in grouped_articles:
         points.append({"name": name, "text": text})
@@ -82,9 +78,7 @@ def parse_template_3_third_format(soup: BeautifulSoup, doc_title_parts) -> list[
     return points
 
 
-def parse_template_4_fourth_format(
-    soup: BeautifulSoup, title_parts, group_headers
-) -> list[dict]:
+def parse_template_4_fourth_format(soup: BeautifulSoup, title_parts, group_headers) -> list[dict]:
     """Parse using the fourth format (grouped sections with tables and 'oj-ti-grseq-1' headers)."""
     points = []
 

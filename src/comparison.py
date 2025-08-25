@@ -35,9 +35,7 @@ class RAGComparison:
         self.model_name = model_name
 
     async def __call__(self, top_k: int = 10) -> dict:
-        with_reranker_score, with_reranker_time = await self._evaluate_retrieval_method(
-            use_reranker=True, top_k=top_k
-        )
+        with_reranker_score, with_reranker_time = await self._evaluate_retrieval_method(use_reranker=True, top_k=top_k)
         (
             without_reranker_score,
             without_reranker_time,
@@ -53,17 +51,13 @@ class RAGComparison:
             },
         }
 
-    async def _evaluate_retrieval_method(
-        self, use_reranker: bool, top_k: int = 10
-    ) -> tuple[float, float]:
+    async def _evaluate_retrieval_method(self, use_reranker: bool, top_k: int = 10) -> tuple[float, float]:
         total_time = 0.0
         total_score = 0
         responses = []
         for item in self.dataset:
             start_time = time.time()
-            response = await self.assistant.generate_response(
-                item["question"], use_reranker=use_reranker, top_k=top_k
-            )
+            response = await self.assistant.generate_response(item["question"], use_reranker=use_reranker, top_k=top_k)
             responses.append(response)
             total_time += time.time() - start_time
 
@@ -112,12 +106,8 @@ class RetrievalComparison:
 
     def __call__(self, top_k: int = 10) -> dict:
         total_items = len(self.dataset)
-        correct_without, time_without = self._evaluate_retrieval_method(
-            use_reranker=False, top_k=top_k
-        )
-        correct_with, time_with = self._evaluate_retrieval_method(
-            use_reranker=True, top_k=top_k
-        )
+        correct_without, time_without = self._evaluate_retrieval_method(use_reranker=False, top_k=top_k)
+        correct_with, time_with = self._evaluate_retrieval_method(use_reranker=True, top_k=top_k)
         return {
             "accuracy": {
                 "without_reranker": correct_without / total_items,
@@ -130,9 +120,7 @@ class RetrievalComparison:
             "top_k": top_k,
         }
 
-    def _retrieve_documents(
-        self, query: str, use_reranker: bool = False, top_k: int = 10
-    ) -> list:
+    def _retrieve_documents(self, query: str, use_reranker: bool = False, top_k: int = 10) -> list:
         try:
             if use_reranker:
                 return self._retrieve_with_reranker(query, top_k)
@@ -142,33 +130,20 @@ class RetrievalComparison:
             logger.error(f"Error in retrieval: {e}")
             return []
 
-    def _retrieve_with_reranker(
-        self, query: str, top_k: int, multiplier: int = 5
-    ) -> list:
-        retrieved_docs, _ = self.vector_db.get_response(
-            query, search_width=top_k * multiplier
-        )
-        return self.cross_encoder.rerank_documents(
-            query, retrieved_docs, reordered_length=top_k
-        )
+    def _retrieve_with_reranker(self, query: str, top_k: int, multiplier: int = 5) -> list:
+        retrieved_docs, _ = self.vector_db.get_response(query, search_width=top_k * multiplier)
+        return self.cross_encoder.rerank_documents(query, retrieved_docs, reordered_length=top_k)
 
     def _retrieve_without_reranker(self, query: str, top_k: int) -> list:
         retrieved_docs, _ = self.vector_db.get_response(query, search_width=top_k)
-        return [
-            {"name": doc["entity"]["name"], "text": doc["entity"]["text"]}
-            for doc in retrieved_docs[0][:top_k]
-        ]
+        return [{"name": doc["entity"]["name"], "text": doc["entity"]["text"]} for doc in retrieved_docs[0][:top_k]]
 
-    def _evaluate_retrieval_method(
-        self, use_reranker: bool, top_k: int = 10
-    ) -> tuple[int, float]:
+    def _evaluate_retrieval_method(self, use_reranker: bool, top_k: int = 10) -> tuple[int, float]:
         correct_count = 0
         total_time = 0.0
         for item in self.dataset:
             start_time = time.time()
-            retrieved_docs = self._retrieve_documents(
-                item["question"], use_reranker, top_k
-            )
+            retrieved_docs = self._retrieve_documents(item["question"], use_reranker, top_k)
             # Check if the expected context is in the retrieved documents:
             if any(item["context"] in doc["text"] for doc in retrieved_docs):
                 correct_count += 1

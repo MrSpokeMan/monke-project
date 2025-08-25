@@ -1,0 +1,30 @@
+[project]
+name = "monke-project"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+authors = [
+    {name = "Filip Mirski", email = "filip.mirski@vstorm.co"},
+    {name = "Wojciech Achtelik", email = "wojciech.achtelik@vstorm.co"},
+]
+requires-python = ">=3.10"
+dependencies = [
+    "beautifulsoup4>=4.13.5",
+    "langchain-community>=0.3.27",
+    "matplotlib>=3.5.0",
+    "openai>=1.0.0",
+    "pydantic>=2.0.0",
+    "pydantic-settings>=2.0.0",
+    "pymilvus>=2.3.0",
+    "python-dotenv>=1.1.1",
+    "sentence-transformers>=5.1.0",
+    "streamlit>=1.48.1",
+    "torch>=2.8.0",
+    "tqdm>=4.67.1",
+]
+
+[dependency-groups]
+dev = ["pre-commit>=4.2.0", "pytest>=8.4.1", "ruff>=0.12.5"]
+
+[tool.ruff]
+line-length = 120
